@@ -1,6 +1,8 @@
-from django.urls import path
-from .views import main
+from django.urls import re_path
+from .views import main, poll, rpc
 
 urlpatterns = [
-    path('', main)
+    re_path("gyatt", rpc),
+    re_path("poll/.+", poll),
+    re_path('.*', main)
 ]

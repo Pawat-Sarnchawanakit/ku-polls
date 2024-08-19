@@ -1,24 +1,45 @@
 from django.shortcuts import render
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpRequest, FileResponse
+from pathlib import Path
+from json import loads
 
-# Create your views here.
+from .models import Poll
 
+def main(request: HttpRequest):
+    try:
+        path = Path(__file__).parents[1].joinpath("frontend", "dist")
+        path = path.joinpath(path, "index.html") if len(request.path) <= 1 or request.path.endswith("create") else path.joinpath(request.path.lstrip("/\\"))
+        file = open(path, "rb")
+        return FileResponse(file)
+    except:
+        pass
+    return HttpResponse("<h1 style=\"text-align: center; margin: auto\">404</h1><p style=\"text-align: center\">Dumb bitch, go back to your pen.</p>")
 
-respose = """
-<!DOCTYPE html>
-<body>
-    <h1 style="text-align: center; margin: auto;">KU Polls</h1>
-    <button style="border: none; color: #2B2B2B; text-size: 16pt" id="cpb">Create poll</button>
-    <ol>
-        <li>Sample poll <a href="about:blank">view</a></li>
-    </ol>
-</body>
+def rpc(request: HttpRequest):
+    data = None
+    try:
+        data = loads(request.body)
+    except:
+        pass
+    if data is None:
+        return HttpResponse("bad")
+    if data["f"] == "create":
+        if data["y"] == None:
+            return HttpResponse("bad")
+        poll = Poll(yaml=data["y"])
+        poll.save()
+        return HttpResponse(poll.id)
+    if data["f"] == "submit":
+        return HttpResponse("ok")
+    if data["f"] == "get":
+        poll = Poll.objects.get(id=data["n"])
+        if poll is None:
+            return HttpResponse("Poll does not exist.")
+        return HttpResponse(poll.yaml)
+    return HttpResponse("bad")
+    
 
-<script>
-    document.getElementById("cpb").onclick = () => {
-        alert("Not implemented.");
-    }
-</script>
-"""
-def main(request):
-    return HttpResponse(respose)
+def poll(request: HttpRequest):
+    path = Path(__file__).parents[1].joinpath("frontend", "dist", "index.html")
+    file = open(path, "rb")
+    return FileResponse(file)
