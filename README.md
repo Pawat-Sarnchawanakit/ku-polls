@@ -9,11 +9,23 @@ https://cpske.github.io/ISP) course at [Kasetsart University](https://www.ku.ac.
 ![UI Preview](./images/UI.png)  
 
 ## Install and Run
-To be added.  
+### Requirements: 
+ - Node JS
+ - Python 3.12.3  
+### Install:  
+ - `$ python -m venv .venv`
+ - Activate the created virtual environment.
+ - `$ pip install -r requirements.txt`
+ - `$ cd ./src/frontend`
+ - `$ npm install`
+ - `$ npm run build`
+ - `$ cd ../..`  
+### Run:  
+ - `$ python ./src/manage.py runserver`
 
 ## Project Documents
 All project documents are in the [Project Wiki](../../wiki/Home).  
-- [Vision Statement](../../wiki/Vision%20Statement)  
+- [Vision Statement](../../wiki/Vision)  
 - [Requirements](../../wiki/Requirements)  
-- [Project Plan](../../wiki/Project%20Plan)  
+- [Project Plan](../../wiki/KU-Polls-Project-Plan)  
 
