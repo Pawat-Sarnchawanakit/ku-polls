@@ -2,12 +2,14 @@
     <div class="holder">
         <h1 class="title">KU Polls</h1>
         <div class="header">
-            <button class="header-btn" @click="redirect('Create poll', 'create', 'create')">Create a poll</button>
+            <a href="/create/"><button class="header-btn">Create a poll</button></a>
         </div>
         <div class="grid">
-            <div v-for="itm in list" :style="{ 'background-image': 'url(' + itm.image + ')' }" @click="redirect('Poll: ' + itm.name, 'poll/' + itm.id, 'poll')" class="grid-itm">
-                <h3>{{ itm.name }}</h3>
-            </div>
+            <a v-for="itm in list" :href="'/poll/' + itm.id">
+                <div :style="{ 'background-image': 'url(' + itm.image + ')' }" class="grid-itm">
+                    <h3>{{ itm.name }}</h3>
+                </div>
+            </a>
         </div>
     </div>
 </template>
@@ -87,11 +89,6 @@ h1, h2, p {
 <script setup>
     import { ref } from 'vue';
     const list = ref([]);
-    const emit = defineEmits(['change_page']);
-    function redirect(title, link, name) {
-        window.history.replaceState({}, title, link);
-        emit('change_page', name);
-    }
     fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
         method: 'POST',
         headers: {

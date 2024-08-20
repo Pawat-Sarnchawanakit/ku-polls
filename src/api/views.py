@@ -6,10 +6,13 @@ from json import loads, dumps
 
 from .models import Poll, Response
 
+def create(request: HttpRequest):
+    return FileResponse(open(Path(__file__).parents[1].joinpath("frontend", "dist", "create", "index.html"), "rb"))
+
 def main(request: HttpRequest):
     try:
         path = Path(__file__).parents[1].joinpath("frontend", "dist")
-        path = path.joinpath(path, "index.html") if len(request.path) <= 1 or request.path.endswith("create") else path.joinpath(request.path.lstrip("/\\"))
+        path = path.joinpath(path, "index.html") if len(request.path) <= 1 else path.joinpath(request.path.lstrip("/\\"))
         file = open(path, "rb")
         return FileResponse(file)
     except:
@@ -28,7 +31,7 @@ def rpc(request: HttpRequest):
     if func == "create":
         if data.get("y") == None:
             return HttpResponse("bad")
-        poll = Poll(yaml=data["y"], name=data.get("n"), image=data.get("i"))
+        poll = Poll(yaml=data["y"], name=data.get("n", 'Unnamed Poll'), image=data.get("i", ''))
         poll.save()
         return HttpResponse(poll.id)
     if func == "list":
@@ -77,6 +80,6 @@ def rpc(request: HttpRequest):
     
 
 def poll(request: HttpRequest):
-    path = Path(__file__).parents[1].joinpath("frontend", "dist", "index.html")
+    path = Path(__file__).parents[1].joinpath("frontend", "dist", "poll", "index.html")
     file = open(path, "rb")
     return FileResponse(file)
