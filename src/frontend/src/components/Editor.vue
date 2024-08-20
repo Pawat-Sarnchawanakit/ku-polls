@@ -43,11 +43,13 @@ const dlg = ref(null);
 const script_editor = ref(null);
 
 const example = `
+name: "The meaning of life"
+image: "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fwww.stock-free.org%2Fimages%2Fstock-free-test-photo-07092015-16.jpg&f=1&nofb=1&ipt=8fe8731f129a2098c9e0a559a7f987f32e7d832a6fbee15968c9a1b4aed2a9d5&ipo=images"
 poll:
     - info:
         type: LABEL
         text: "Example Survey"
-        label: "The purpose of this survey is to know what people think the meaning of life is.\nThis should give insight into why people commit suicide."
+        label: "The purpose of this survey is to know what people think the meaning of life is.\\nThis should give insight into why people commit suicide."
     - name:
         type: SHORT
         text: "What is your name?"
