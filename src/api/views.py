@@ -1,9 +1,10 @@
 from django.shortcuts import render
 from django.http import HttpResponse, HttpRequest, FileResponse
+from django.db.models import Count
 from pathlib import Path
-from json import loads
+from json import loads, dumps
 
-from .models import Poll
+from .models import Poll, Response
 
 def main(request: HttpRequest):
     try:
@@ -23,19 +24,55 @@ def rpc(request: HttpRequest):
         pass
     if data is None:
         return HttpResponse("bad")
-    if data["f"] == "create":
-        if data["y"] == None:
+    func = data.get("f")
+    if func == "create":
+        if data.get("y") == None:
             return HttpResponse("bad")
-        poll = Poll(yaml=data["y"])
+        poll = Poll(yaml=data["y"], name=data.get("n"), image=data.get("i"))
         poll.save()
         return HttpResponse(poll.id)
-    if data["f"] == "submit":
-        return HttpResponse("ok")
-    if data["f"] == "get":
-        poll = Poll.objects.get(id=data["n"])
-        if poll is None:
-            return HttpResponse("Poll does not exist.")
-        return HttpResponse(poll.yaml)
+    if func == "list":
+        try:
+            polls = Poll.objects.all().order_by("-pub_date")[:100].values("id", "name", "image")
+            return HttpResponse(dumps(list(polls)))
+        except Exception as e:
+            return HttpResponse(str(e))
+    if func == "res":
+        try:
+            poll = Poll.objects.get(id=data.get("n"))
+            ress = Response.objects.all() \
+                .filter(question=poll) \
+                .values("key", "value") \
+                .annotate(count=Count("value"))
+            out = dict()
+            for v in ress:
+                val = out.get(v["key"])
+                if val is None:
+                    val = []
+                    out[v["key"]] = val
+                val.append({
+                    "value": v["value"],
+                    "count": v["count"]
+                })
+            return HttpResponse(dumps(out))
+        except Exception as e:
+            return HttpResponse(str(e))
+    if func == "submit":
+        try:
+            poll = Poll.objects.get(id=data.get("n"))
+            ress = []
+            for k, v in (data.get("r", {})).items():
+                ress.append(Response(question=poll, key=k, value=v))
+            Response.objects.bulk_create(ress)
+            return HttpResponse("ok")
+        except Exception as e:
+            return HttpResponse(str(e))
+    if func == "get":
+        try:
+            poll = Poll.objects.get(id=data.get("n"))
+            return HttpResponse(poll.yaml)
+        except Exception as e:
+            return HttpResponse(str(e))
     return HttpResponse("bad")
     
 

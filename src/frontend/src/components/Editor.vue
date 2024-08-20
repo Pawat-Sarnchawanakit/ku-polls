@@ -44,6 +44,10 @@ const script_editor = ref(null);
 
 const example = `
 poll:
+    - info:
+        type: LABEL
+        text: "Example Survey"
+        label: "The purpose of this survey is to know what people think the meaning of life is.\nThis should give insight into why people commit suicide."
     - name:
         type: SHORT
         text: "What is your name?"
@@ -67,7 +71,7 @@ function create() {
     dlg.value.showModal();
     return;
   }
-  dlg.value.innerText = "Created"
+  dlg.value.innerText = "Creating..."
   dlg.value.showModal();
   fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
     method: 'POST',
@@ -76,9 +80,14 @@ function create() {
     },
     body: JSON.stringify({
       f: "create",
+      n: res.doc.name || "Unnamed poll",
+      i: res.doc.image,
       y: yml
     })
-  }).then(res => {});
+  }).then(res => {
+    dlg.value.innerText = "Created"
+    dlg.value.showModal();
+  });
 }
 
 function preview() {
