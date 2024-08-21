@@ -16,6 +16,7 @@ class Poll(models.Model):
 
 class Response(models.Model):
     question = models.ForeignKey(Poll, on_delete=models.CASCADE)
+    submitter = models.ForeignKey(User, default=None, null=True, on_delete=models.CASCADE)
     key = models.CharField(max_length=200)
     value = models.CharField(max_length=200)
 

@@ -40,7 +40,7 @@ const poll = ref(null);
 let submitted = false;
 const poll_id = document.location.pathname.split('/').filter((a) => a.length != 0)[1];
 let poll_data;
-function onYamlLoaded(body) {
+async function onYamlLoaded(body) {
     const result = validate_yaml(body);
     if(!result.ok) {
         submitted = true;
@@ -50,15 +50,38 @@ function onYamlLoaded(body) {
         return;
     }
     poll_data = result.yaml;
-    if(poll_data.allow != 0 && (poll_data.allow & AllowType.CLIENT) != 0 && localStorage.getItem("answered_" + poll_id) == 'y') {
-        submitted = true;
-        dlg_col.value = "#FFF";
-        dlg_text.value = "You already answered this poll.";
-        dlg.value.showModal();
-        return;
+    submitted = true;
+    if(poll_data.allow == 0) {
+        submitted = false;
+    } else {
+        if((poll_data.allow & AllowType.CLIENT) != 0) {
+            if(localStorage.getItem("answered_" + poll_id) == 'y') {
+                dlg_col.value = "#FFF";
+                dlg_text.value = "You already answered this poll.";
+                dlg.value.showModal();
+                submitted = true;
+            } else submitted = false;
+        }
+        if(!submitted && (poll_data.allow & AllowType.AUTH) != 0) {
+            submitted = true;
+            const res = await fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    f: "aa",
+                    n: poll_id,
+                })
+            });
+            const body = await res.text()
+            if(body == 'y')
+                submitted = false;
+        }
     }
     display_poll(poll.value, poll_data);
-    loaded.value = true;
+    if(!submitted)
+        loaded.value = true;
 }
 onMounted(() => mounted = true);
 fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
@@ -72,8 +95,8 @@ fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
     })
 }).then(res => res.text().then((body) => {
     if(mounted)
-        onYamlLoaded(body)
-    else onMounted(() => onYamlLoaded(body));
+        return onYamlLoaded(body)
+    return onMounted(() => onYamlLoaded(body));
 }));
 // onMounted(() => {
 // onYamlLoaded(`
@@ -98,8 +121,15 @@ fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
 // `);
 // });
 function dialog_closed() {
-    if(submitted)
-        window.location = window.location.protocol + "//" + window.location.host;
+    if(submitted) {
+        window.location.replace(window.location.protocol + "//" + window.location.host);
+        poll.value.innerHTML = "";
+        const redirect = document.createElement("a");
+        redirect.setAttribute("style", "color: #50F");
+        redirect.setAttribute("href", "/");
+        redirect.innerText = "Click here if it doesn't automatically redirect.";
+        poll.value.appendChild(redirect);
+    }
 }
 function submit() {
     if(submitted)

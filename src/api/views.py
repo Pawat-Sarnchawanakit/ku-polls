@@ -2,17 +2,21 @@ from django.shortcuts import render
 from django.shortcuts import redirect
 from django.http import HttpResponse, HttpRequest, FileResponse
 from django.db.models import Count
-from pathlib import Path
+from pathlib import Path, PurePath
 from json import loads, dumps
 from django.utils import timezone, timesince
 from django.contrib.staticfiles.views import serve
 from datetime import timedelta
 import secrets
 import hmac
-
+import enum
 from .models import Poll, Response, Session, User
 
 FRONTEND = Path(__file__).parents[1].joinpath("frontend", "dist")
+
+class AuthType(enum.Enum):
+    Client = 1
+    Auth = 1 << 1
 
 def create(request: HttpRequest):
     user = check_auth(request)
@@ -145,9 +149,28 @@ def rpc(request: HttpRequest):
             return HttpResponse(dumps(out))
         except Exception as e:
             return HttpResponse(str(e), status=500)
+    if func == "aa":
+        try:
+            user = check_auth(request)
+            if user is not None:
+                if Response.objects.filter(submitter=user, question=poll).first() is not None:
+                    return HttpResponse("y")
+                return HttpResponse("n")
+            return HttpResponse("?", status=401)
+        except Exception as e:
+            return HttpResponse(str(e), status=500)
     if func == "submit":
         try:
+            user = check_auth(request)
             poll = Poll.objects.get(id=data.get("n"))
+            can_submit = poll.allow == 0 or poll.allow & AuthType.Client == 1
+            if not can_submit:
+                if poll.allow & AuthType.Auth == 1:
+                    if user is not None:
+                        Response.objects.filter(submitter=user, question=poll).delete()
+                        can_submit = True
+            if not can_submit:
+                return HttpResponse("Forbidden", status=403)
             ress = []
             for k, v in (data.get("r", {})).items():
                 ress.append(Response(question=poll, key=k, value=v))
@@ -166,3 +189,6 @@ def rpc(request: HttpRequest):
 
 def poll(request: HttpRequest):
     return FileResponse(open(FRONTEND.joinpath("poll", "index.html"), "rb"))
+
+def res(request: HttpRequest):
+    return FileResponse(open(FRONTEND.joinpath("res", "index.html"), "rb"))
