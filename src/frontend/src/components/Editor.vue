@@ -38,13 +38,14 @@ button:hover {
 <script setup>
 import { ref, onMounted } from "vue"
 import * as monaco from 'monaco-editor';
-import { load_yaml } from "/src/poll_loader.js"
+import { validate_yaml, display_poll } from "/src/poll_loader.js"
 const dlg = ref(null);
 const script_editor = ref(null);
 
 const example = `
 name: "The meaning of life"
 image: "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fwww.stock-free.org%2Fimages%2Fstock-free-test-photo-07092015-16.jpg&f=1&nofb=1&ipt=8fe8731f129a2098c9e0a559a7f987f32e7d832a6fbee15968c9a1b4aed2a9d5&ipo=images"
+allow: CLIENT
 poll:
     - info:
         type: LABEL
@@ -67,9 +68,9 @@ let monaco_editor;
 
 function create() {
   const yml = monaco_editor.getValue()
-  const res = load_yaml(yml);
+  const res = validate_yaml(yml);
   if(!res.ok) {
-    dlg.value.innerText = res;
+    dlg.value.innerText = res.message;
     dlg.value.showModal();
     return;
   }
@@ -82,33 +83,42 @@ function create() {
     },
     body: JSON.stringify({
       f: "create",
-      n: res.doc.name || "Unnamed poll",
-      i: res.doc.image,
+      n: res.yaml.name,
+      i: res.yaml.image,
+      a: res.yaml.allow,
       y: yml
     })
-  }).then(res => {
+  }).then(_ => {
     dlg.value.innerText = "Created"
     dlg.value.showModal();
   });
 }
 
 function preview() {
-  const res = load_yaml(monaco_editor.getValue());
-  if(res.ok) {
-    dlg.value.innerHTML = res.content;
-  } else {
-    dlg.value.innerText = res;
+  const res = validate_yaml(monaco_editor.getValue());
+  if(!res.ok) {
+    const text = document.createElement("p");
+    text.setAttribute("style", "color: #F00")
+    text.innerText = res.message;
+    dlg.value.showModal();
+    return;
   }
+  dlg.value.innerHTML = '';
+  display_poll(dlg.value, res.yaml, false);
   dlg.value.showModal();
 }
 
 onMounted(() => {
   monaco_editor = monaco.editor.create(script_editor.value, {
-        value: example,
-        language: 'yaml',
-        automaticLayout: true,
-        theme: 'vs-dark',
-        tabSize: 4,
-    });
+      value: example,
+      language: 'yaml',
+      automaticLayout: true,
+      theme: 'vs-dark',
+      tabSize: 4,
+  });
+  const saved_poll = localStorage.getItem("saved_poll");
+  if(saved_poll != null)
+    monaco_editor.setValue(saved_poll);
+  setInterval(() => localStorage.setItem("saved_poll", monaco_editor.getValue()), 3000);
 })
 </script>

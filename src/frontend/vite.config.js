@@ -10,7 +10,8 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         create: resolve(__dirname, 'create/index.html'),
-        poll: resolve(__dirname, 'poll/index.html')
+        poll: resolve(__dirname, 'poll/index.html'),
+        auth: resolve(__dirname, 'auth/index.html')
       }
     }
   }
