@@ -151,6 +151,9 @@ def rpc(request: HttpRequest):
             return HttpResponse(str(e), status=500)
     if func == "aa":
         try:
+            poll = Poll.objects.get(id=data.get("n"))
+            if poll is None:
+                return HttpResponse("?", status=404)
             user = check_auth(request)
             if user is not None:
                 if Response.objects.filter(submitter=user, question=poll).first() is not None:
@@ -163,9 +166,9 @@ def rpc(request: HttpRequest):
         try:
             user = check_auth(request)
             poll = Poll.objects.get(id=data.get("n"))
-            can_submit = poll.allow == 0 or poll.allow & AuthType.Client == 1
+            can_submit = poll.allow == 0 or (poll.allow & AuthType.Client.value) != 0
             if not can_submit:
-                if poll.allow & AuthType.Auth == 1:
+                if (poll.allow & AuthType.Auth.value) != 0:
                     if user is not None:
                         Response.objects.filter(submitter=user, question=poll).delete()
                         can_submit = True
@@ -173,7 +176,7 @@ def rpc(request: HttpRequest):
                 return HttpResponse("Forbidden", status=403)
             ress = []
             for k, v in (data.get("r", {})).items():
-                ress.append(Response(question=poll, key=k, value=v))
+                ress.append(Response(question=poll, key=k, value=v, submitter=user))
             Response.objects.bulk_create(ress)
             return HttpResponse("ok")
         except Exception as e:

@@ -62,7 +62,8 @@ async function onYamlLoaded(body) {
                 submitted = true;
             } else submitted = false;
         }
-        if(!submitted && (poll_data.allow & AllowType.AUTH) != 0) {
+        // console.log(submitted, poll_data.allow, AllowType.AUTH, (poll_data.allow & AllowType.AUTH) != 0);
+        if(submitted && (poll_data.allow & AllowType.AUTH) != 0) {
             submitted = true;
             const res = await fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
                 method: 'POST',
@@ -75,7 +76,7 @@ async function onYamlLoaded(body) {
                 })
             });
             const body = await res.text()
-            if(body == 'y')
+            if(body != 'y')
                 submitted = false;
         }
     }
