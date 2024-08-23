@@ -16,12 +16,12 @@ https://cpske.github.io/ISP) course at [Kasetsart University](https://www.ku.ac.
  - `$ python -m venv .venv`
  - Activate the created virtual environment.
  - `$ pip install -r requirements.txt`
- - `$ cd ./src/frontend`
+ - `$ cd ./frontend`
  - `$ npm install`
  - `$ npm run build`
- - `$ cd ../..`  
+ - `$ cd ..`  
 ### Run:  
- - `$ python ./src/manage.py runserver`
+ - `$ python ./manage.py runserver`
 
 ## Project Documents
 All project documents are in the [Project Wiki](../../wiki/Home).  
