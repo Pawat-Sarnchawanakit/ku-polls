@@ -20,6 +20,7 @@ https://cpske.github.io/ISP) course at [Kasetsart University](https://www.ku.ac.
  - `$ npm install`
  - `$ npm run build`
  - `$ cd ..`  
+ - `$ python ./manage.py migrate`
 ### Run:  
  - `$ python ./manage.py runserver`
 
