@@ -229,6 +229,8 @@ def rpc(request: HttpRequest):
         try:
             user = check_auth(request)
             poll = Poll.objects.get(id=data.get("n"))
+            if poll.pub_date > timezone.now():
+                return HttpResponse("Forbidden", status=403)
             can_submit = poll.allow == 0 or (poll.allow
                                              & AuthType.Client.value) != 0
             if not can_submit:
@@ -251,10 +253,13 @@ def rpc(request: HttpRequest):
         try:
             user = check_auth(request)
             poll = Poll.objects.get(id=data.get("n"))
+            is_creator = user is not None and poll.creator == user
+            if poll.pub_date > timezone.now() and not is_creator:
+                return HttpResponse("Forbidden", status=403)
             return HttpResponse(
                 dumps({
                     "is_creator":
-                    user is not None and poll.creator == user,
+                    is_creator,
                     "login":
                     user is None
                     and (poll.allow != 0 and
