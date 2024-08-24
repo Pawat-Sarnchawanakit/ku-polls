@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0004_response_key'),
+        ('polls', '0004_response_key'),
     ]
 
     operations = [

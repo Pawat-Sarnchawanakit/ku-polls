@@ -22,6 +22,11 @@ export const AllowType = {
   AUTH: 1 << 1
 };
 
+export const ResType = {
+  CREATOR: 1,
+  AUTH: 1 << 1
+};
+
 export function validate_yaml(code) {
   let doc;
   try {
@@ -40,7 +45,7 @@ export function validate_yaml(code) {
   doc.name = doc.name || "Unnamed poll";
   doc.image = doc.image || "";
   {
-    doc.allow = doc.allow || "*";
+    doc.allow = doc.allow || "CLIENT";
     if(typeof(doc.allow) == "string")
       doc.allow = [ doc.allow ];
     if(!(doc.allow instanceof Array))
@@ -66,6 +71,34 @@ export function validate_yaml(code) {
     if(allow_any)
       allow_int = 0;
     doc.allow = allow_int;
+  }
+  {
+    doc.res = doc.res || "*";
+    if(typeof(doc.res) == "string")
+      doc.res = [ doc.res ];
+    if(!(doc.res instanceof Array))
+      return {
+        ok: false,
+        message: "res must be string or a list of string."
+      };
+    let res_int = 0;
+    let res_any = false;
+    for(const res of doc.res) {
+      switch(res) {
+        case "*":
+          res_any = true;
+          break;
+        case "CREATOR":
+          res_int |= ResType.CREATOR;
+          break;
+        case "AUTH":
+          res_int |= ResType.AUTH;
+          break;
+      }
+    }
+    if(res_any)
+      res_int = 0;
+    doc.res = res_int;
   }
   const questions = new Set();
   for(const question_obj of doc.poll) {
@@ -207,7 +240,7 @@ export function get_poll_answers(element, yaml) {
             ok: false,
             message: "Failed to question block for `" + question_var + "`"
           };
-        const choice = document.querySelector("div > input:checked");
+        const choice = blk.querySelector("div > input:checked");
         if(!choice) {
           if(question.required)
             return {

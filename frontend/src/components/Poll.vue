@@ -1,12 +1,31 @@
 <template>
     <div style="background-color: transparent;height: 100%;overflow: auto;">
-        <dialog @close="dialog_closed" ref="dlg" style="background-color: #2B2B2B;border: none; border-radius: 10px;"><h1 :style="{ 'color': dlg_col }"> {{ dlg_text }}</h1><br/><p style="color: #FFF;margin: auto;text-align: center">Press ESC to close.</p></dialog>
+        <div style="display: flex;flex-direction: row;">
+            <a href="/"><input class="left-btn" :style='{ "background-image": `url("${home_img}")` }' type="button"/></a>
+            <input v-if="can_view_res || is_creator" @click="view_response" class="left-btn" :style='{ "background-image": `url("${bars_img}")` }' type="button"/>
+            <input v-if="is_creator" @click="edit_poll" class="left-btn" :style='{ "background-image": `url("${edit_img}")` }' type="button"/>
+        </div>
+        <dialog ref="dlg" style="background-color: #2B2B2B;border: none; border-radius: 10px;"><h1 :style="{ 'color': dlg_col }"> {{ dlg_text }}</h1><br/><p style="color: #FFF;margin: auto;text-align: center">Press ESC to close.</p></dialog>
         <div ref="poll"></div>
         <div v-if="loaded" style="display: flex;justify-content: center;margin-bottom: 10px"><button @click="submit">Submit</button></div>
     </div>
 </template>
 
 <style scoped>
+.left-btn {
+    user-select: none;
+    margin: 5px;
+    background-color: #3B3B3B;
+    background-size: cover;
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 10px;
+    display: block;
+}
+.left-btn:hover {
+    background-color: #4B4B4B;
+}
 dialog::backdrop {
     backdrop-filter: blur(2px);
 }
@@ -31,7 +50,12 @@ button:active {
 <script setup>
 import { ref, onMounted } from 'vue';
 import { validate_yaml, display_poll, get_poll_answers, AllowType } from "/src/poll_loader.js"
+import home_img from './../assets/home.svg?url';
+import edit_img from './../assets/edit.svg?url';
+import bars_img from './../assets/bars.svg?url';
 var mounted = false;
+const can_view_res = ref(true);
+const is_creator = ref(true);
 const dlg_col = ref("#FFF")
 const dlg_text = ref("Please answer all questions.");
 const dlg = ref(false);
@@ -40,6 +64,15 @@ const poll = ref(null);
 let submitted = false;
 const poll_id = document.location.pathname.split('/').filter((a) => a.length != 0)[1];
 let poll_data;
+
+function view_response() {
+    document.location.href = window.location.protocol + "//" + window.location.host + "/res/" + poll_id;
+}
+
+function edit_poll() {
+    document.location.href = window.location.protocol + "//" + window.location.host + "/create/" + poll_id;
+}
+
 async function onYamlLoaded(body) {
     const result = validate_yaml(body);
     if(!result.ok) {
@@ -49,6 +82,8 @@ async function onYamlLoaded(body) {
         dlg.value.showModal();
         return;
     }
+    if(result.res == 0)
+        can_view_res.value = true;
     poll_data = result.yaml;
     submitted = true;
     if(poll_data.allow == 0) {
@@ -78,6 +113,11 @@ async function onYamlLoaded(body) {
             const body = await res.text()
             if(body != 'y')
                 submitted = false;
+            else {
+                dlg_col.value = "#FFF";
+                dlg_text.value = "You already answered this poll.";
+                dlg.value.showModal();
+            }
         }
     }
     display_poll(poll.value, poll_data);
@@ -94,10 +134,14 @@ fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
         f: "get",
         n: poll_id
     })
-}).then(res => res.text().then((body) => {
+}).then(res => res.json().then((body) => {
+    if(body.is_creator)
+        is_creator.value = true;
+    if(body.login)
+        window.location.href = window.location.protocol + "//" + window.location.host + "/login";
     if(mounted)
-        return onYamlLoaded(body)
-    return onMounted(() => onYamlLoaded(body));
+        return onYamlLoaded(body.yaml)
+    return onMounted(() => onYamlLoaded(body.yaml));
 }));
 // onMounted(() => {
 // onYamlLoaded(`
@@ -121,17 +165,6 @@ fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
 //             - d: "The meaning of life is a subjective concept that varies from person to person, often encompassing themes of purpose, fulfillment, and personal growth."
 // `);
 // });
-function dialog_closed() {
-    if(submitted) {
-        window.location.replace(window.location.protocol + "//" + window.location.host);
-        poll.value.innerHTML = "";
-        const redirect = document.createElement("a");
-        redirect.setAttribute("style", "color: #50F");
-        redirect.setAttribute("href", "/");
-        redirect.innerText = "Click here if it doesn't automatically redirect.";
-        poll.value.appendChild(redirect);
-    }
-}
 function submit() {
     if(submitted)
         return;

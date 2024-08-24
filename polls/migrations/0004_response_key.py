@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0003_rename_input_response_delete_choice'),
+        ('polls', '0003_rename_input_response_delete_choice'),
     ]
 
     operations = [

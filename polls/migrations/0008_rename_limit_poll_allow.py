@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0007_poll_creator_poll_limit_alter_session_session'),
+        ('polls', '0007_poll_creator_poll_limit_alter_session_session'),
     ]
 
     operations = [

@@ -7,14 +7,14 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0006_user_session'),
+        ('polls', '0006_user_session'),
     ]
 
     operations = [
         migrations.AddField(
             model_name='poll',
             name='creator',
-            field=models.ForeignKey(default=23, on_delete=django.db.models.deletion.CASCADE, to='api.user'),
+            field=models.ForeignKey(default=23, on_delete=django.db.models.deletion.CASCADE, to='polls.user'),
             preserve_default=False,
         ),
         migrations.AddField(

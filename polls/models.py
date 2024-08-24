@@ -24,6 +24,8 @@ class Poll(models.Model):
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     # Who is allowed to submit responses to the poll, authenticated users only? etc...
     allow = models.IntegerField(default=0)
+    # Who is allowed to view the result of the poll.
+    res = models.IntegerField(default=0)
     # The thumbnail image of the poll.
     image = models.CharField(max_length=256, default='')
     # The actual poll data in yaml.

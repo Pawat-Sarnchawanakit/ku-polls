@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0005_poll_image_poll_name'),
+        ('polls', '0005_poll_image_poll_name'),
     ]
 
     operations = [
@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('accessed', models.DateTimeField(auto_now_add=True)),
                 ('session', models.CharField(editable=False, max_length=48, primary_key=True, serialize=False, unique=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='api.user')),
+                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='polls.user')),
             ],
         ),
     ]

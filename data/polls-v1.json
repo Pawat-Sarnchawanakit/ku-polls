@@ -1,11 +1,11 @@
 [
 {
   "model": "polls.user",
-  "pk": "h99",
+  "pk": "user",
   "fields": {
-    "created": "2024-08-23T13:37:24.057Z",
-    "password_hash": "B6nQYLBi5Nu4ZWVU9DXwAusasfWajpUjOKMotICvJi/cGUJCqEOH+pE9RzhN504IcziDMJhvHIB/I+IAg9aDRQ==",
-    "password_salt": "Xbtk+ray2emysb8+M19Aj8yFIdYMC7Ep+Y6oLYT+3A8sXaIX5V4UqS/dw0MHaBoYkmnORRYWx6cau+fOVXa4vg=="
+    "created": "2024-08-24T12:17:42.859Z",
+    "password_hash": "nobE994sJYaaKubfhyFWrbn7IXG4MhGGEjAZpAW4hE4FkHB752UlfINHZRjkcxpu6upF9+guH7gxT8YT//2ssA==",
+    "password_salt": "F/ZkvXDBvTOP7ZQYeQHEmPF4tmYVrcVHd2QSxL7HVz7lm3rnyhIQrbVo2EV3cdxLTV7IWDpasVqdYXPdvobm7w=="
   }
 },
 {
@@ -13,11 +13,12 @@
   "pk": 1,
   "fields": {
     "name": "Poll 1",
-    "creator": "h99",
+    "creator": "user",
     "allow": 2,
+    "res": 0,
     "image": "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fwww.publicdomainpictures.net%2Fpictures%2F170000%2Fvelka%2Fsuperman.jpg&f=1&nofb=1&ipt=a2fc3be8cd1d24aedb1aac3181302ecc71e30ae0ebd215e79a76e7da799147d1&ipo=images",
-    "yaml": "\nname: \"Poll 1\"\nimage: \"https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fwww.publicdomainpictures.net%2Fpictures%2F170000%2Fvelka%2Fsuperman.jpg&f=1&nofb=1&ipt=a2fc3be8cd1d24aedb1aac3181302ecc71e30ae0ebd215e79a76e7da799147d1&ipo=images\"\nallow: AUTH\npoll:\n    - info:\n        type: LABEL\n        text: \"Example poll 1\"\n        label: \"The purpose of this poll is to know what superpower people want and\\n what they like to do on weekends.\"\n    - superpower:\n        type: CHOICE\n        text: \"Which superpower would you rather have?\"\n        choices:\n            - invis: \"Invisibility\"\n            - tp: \"Teleportation\"\n            - speed: \"Super speed\"\n            - time: \"Time manipulation\"\n    - weekend:\n        type: CHOICE\n        text: \"What's your favorite way to spend a weekend?\"\n        choices:\n            - tv: \"Binge-watching TV shows\"\n            - outdoors: \"Exploring the great outdoors\"\n            - camp: \"Camping\"\n            - game: \"Gaming\"\n",
-    "pub_date": "2024-08-23T13:44:01.509Z"
+    "yaml": "name: \"Poll 1\"\nimage: \"https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fwww.publicdomainpictures.net%2Fpictures%2F170000%2Fvelka%2Fsuperman.jpg&f=1&nofb=1&ipt=a2fc3be8cd1d24aedb1aac3181302ecc71e30ae0ebd215e79a76e7da799147d1&ipo=images\"\nallow: AUTH\nres: '*'\npoll:\n    - info:\n        type: LABEL\n        text: \"Example poll 1\"\n        label: \"The purpose of this poll is to know what superpower people want and\\n what they like to do on weekends.\"\n    - superpower:\n        type: CHOICE\n        text: \"Which superpower would you rather have?\"\n        choices:\n            - invis: \"Invisibility\"\n            - tp: \"Teleportation\"\n            - speed: \"Super speed\"\n            - time: \"Time manipulation\"\n    - weekend:\n        type: CHOICE\n        text: \"What's your favorite way to spend a weekend?\"\n        choices:\n            - tv: \"Binge-watching TV shows\"\n            - outdoors: \"Exploring the great outdoors\"\n            - camp: \"Camping\"\n            - game: \"Gaming\"\n",
+    "pub_date": "2024-08-24T12:17:54.176Z"
   }
 },
 {
@@ -25,19 +26,20 @@
   "pk": 2,
   "fields": {
     "name": "Poll 2",
-    "creator": "h99",
+    "creator": "user",
     "allow": 2,
+    "res": 0,
     "image": "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fwww.publicdomainpictures.net%2Fpictures%2F280000%2Fvelka%2Fgolden-dragon-1543960150tr0.jpg&f=1&nofb=1&ipt=8d469af2d301eb2fff7f77bf68fe658c75df6347377e03cdbd2c4f30a6d7d5fa&ipo=images",
-    "yaml": "\nname: \"Poll 2\"\nimage: \"https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fwww.publicdomainpictures.net%2Fpictures%2F280000%2Fvelka%2Fgolden-dragon-1543960150tr0.jpg&f=1&nofb=1&ipt=8d469af2d301eb2fff7f77bf68fe658c75df6347377e03cdbd2c4f30a6d7d5fa&ipo=images\"\nallow: AUTH\npoll:\n    - info:\n        type: LABEL\n        text: \"Example poll 2\"\n        label: \"The purpose of this poll is to know whather people prefer to go to the past or the future and\\n what mode of transportation they like.\"\n    - time:\n        type: CHOICE\n        text: \"If you could time travel, where would you go?\"\n        choices:\n            - past: \"Past\"\n            - cur: \"I won't time travel.\"\n            - fut: \"Future\"\n    - transpt:\n        type: CHOICE\n        text: \"Pick a mode of transportation\"\n        choices:\n            - dragon: \"Flying on a dragon\"\n            - pirateship: \"Sailing the seas on a pirate ship\"\n            - car: \"Car\"\n            - bus: \"The flying bus from Fortnite\"\n",
-    "pub_date": "2024-08-23T13:47:14.361Z"
+    "yaml": "name: \"Poll 2\"\nimage: \"https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fwww.publicdomainpictures.net%2Fpictures%2F280000%2Fvelka%2Fgolden-dragon-1543960150tr0.jpg&f=1&nofb=1&ipt=8d469af2d301eb2fff7f77bf68fe658c75df6347377e03cdbd2c4f30a6d7d5fa&ipo=images\"\nallow: AUTH\nres: '*'\npoll:\n    - info:\n        type: LABEL\n        text: \"Example poll 2\"\n        label: \"The purpose of this poll is to know whather people prefer to go to the past or the future and\\n what mode of transportation they like.\"\n    - time:\n        type: CHOICE\n        text: \"If you could time travel, where would you go?\"\n        choices:\n            - past: \"Past\"\n            - cur: \"I won't time travel.\"\n            - fut: \"Future\"\n    - transpt:\n        type: CHOICE\n        text: \"Pick a mode of transportation\"\n        choices:\n            - dragon: \"Flying on a dragon\"\n            - pirateship: \"Sailing the seas on a pirate ship\"\n            - car: \"Car\"\n            - bus: \"The flying bus from Fortnite\"\n",
+    "pub_date": "2024-08-24T12:18:03.615Z"
   }
 },
 {
   "model": "polls.session",
-  "pk": "XPRoMHGN0eME/kfu9Vj8slORuDhxT/XYKpbb/SjLDzE/UprfFS7JKH1EJ4WZV5MznOh4bV5yO18PwpqTiqtDMg==",
+  "pk": "ajRRKaIZ1Oc5wzMlUXiKztnFXWG4wEtADMFz+hCQqmWGcoRNJxQvKytJXqZtFeA42udkSmcbuRXPpAfpyKzbNA==",
   "fields": {
-    "user": "h99",
-    "accessed": "2024-08-23T13:37:24.060Z"
+    "user": "user",
+    "accessed": "2024-08-24T12:17:42.863Z"
   }
 }
 ]

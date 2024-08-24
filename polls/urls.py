@@ -5,7 +5,8 @@ from pathlib import Path
 
 urlpatterns = static("/assets/", document_root=Path(__file__).parents[1].joinpath("frontend", "dist", "assets")) + [
     path("auth/", auth),
-    path("create/", create),
+    path("login", auth),
+    re_path("create/.*", create),
     path("gyatt", rpc),
     re_path("poll/.+", poll),
     re_path("res/.+", res),

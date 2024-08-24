@@ -19,6 +19,10 @@ class AuthType(enum.Enum):
     Client = 1
     Auth = 1 << 1
 
+class ResType(enum.Enum):
+    Creator = 1
+    Auth = 1 << 1
+
 
 def create(request: HttpRequest):
     user = check_auth(request)
@@ -129,11 +133,25 @@ def rpc(request: HttpRequest):
         if data.get("y") == None:
             return HttpResponse("bad", status=400)
         try:
-            poll = Poll(yaml=data["y"],
-                        name=data.get("n", 'Unnamed Poll'),
-                        image=data.get("i", ''),
-                        creator=user,
-                        allow=int(data.get("a", 0)))
+            poll = None
+            edit = data.get('e')
+            if edit:
+                poll = Poll.objects.get(id=edit)
+                if poll is None:
+                    return HttpResponse("Not found", status=404)
+                if poll.creator != user:
+                    return HttpResponse("Forbidden", status=403)
+                poll.yaml = data["y"]
+                poll.name = data.get("n", 'Unnamed Poll')
+                poll.image = data.get("i", '')
+                poll.allow = int(data.get("a", 0))
+            else:
+                poll = Poll(yaml=data.get("y", ''),
+                            name=data.get("n", 'Unnamed Poll'),
+                            res=data.get("r"),
+                            image=data.get("i", ''),
+                            creator=user,
+                            allow=int(data.get("a", 0)))
             poll.save()
         except Exception as e:
             return HttpResponse(str(e), status=500)
@@ -148,10 +166,11 @@ def rpc(request: HttpRequest):
     if func == "res":
         try:
             user = check_auth(request)
-            if user is None:
-                return HttpResponse("Unauthorized", status=401)
             poll = Poll.objects.get(id=data.get("n"))
-            if poll.creator != user:
+            can_view = False
+            if not (((poll.res & ResType.Creator.value) != 0) and user is not None and poll.creator == user or \
+                poll.res == 0 or \
+                ((poll.res & ResType.Auth.value) != 0) and user is not None):
                 return HttpResponse("Forbidden", status=403)
             ress = Response.objects.filter(question=poll) \
                 .values("key", "value") \
@@ -204,8 +223,14 @@ def rpc(request: HttpRequest):
             return HttpResponse(str(e), status=500)
     if func == "get":
         try:
+            user = check_auth(request)
             poll = Poll.objects.get(id=data.get("n"))
-            return HttpResponse(poll.yaml)
+            return HttpResponse(dumps({
+                "is_creator": user is not None and poll.creator == user,
+                "login": user is None and (poll.allow != 0 and (poll.allow & AuthType.Client.value) == 0),
+                "yaml": poll.yaml,
+
+            }))
         except Exception as e:
             return HttpResponse(str(e), status=500)
     return HttpResponse("bad", status=400)
