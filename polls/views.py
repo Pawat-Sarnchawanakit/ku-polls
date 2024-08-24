@@ -42,7 +42,6 @@ def check_auth(request: HttpRequest):
             session.save()
         return session.user
     except Exception as e:
-        print(str(e))
         return None
 
 

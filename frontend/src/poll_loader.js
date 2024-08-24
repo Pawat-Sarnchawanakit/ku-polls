@@ -44,6 +44,7 @@ export function validate_yaml(code) {
     };
   doc.name = doc.name || "Unnamed poll";
   doc.image = doc.image || "";
+  doc.begin = doc.begin || new Date/1E3|0;
   {
     doc.allow = doc.allow || "CLIENT";
     if(typeof(doc.allow) == "string")
