@@ -1,7 +1,7 @@
-from django.urls import re_path, path
-from .views import main, poll, rpc, create, auth, res
-from django.conf.urls.static import static
 from pathlib import Path
+from django.urls import re_path, path
+from django.conf.urls.static import static
+from .views import main, poll, rpc, create, auth, res
 
 urlpatterns = static("/assets/", document_root=Path(__file__).parents[1].joinpath("frontend", "dist", "assets")) + [
     path("auth/", auth),

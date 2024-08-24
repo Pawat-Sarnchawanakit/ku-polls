@@ -31,7 +31,7 @@ class Poll(models.Model):
     # The actual poll data in yaml.
     yaml = models.CharField(max_length=4096 * 8)
     # The date the poll is published.
-    pub_date = models.DateTimeField(auto_now_add=True)
+    pub_date = models.DateTimeField()
 
 
 """Reponse of the polls.
