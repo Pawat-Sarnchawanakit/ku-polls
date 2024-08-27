@@ -1,24 +1,24 @@
 from django.db import models
-"""Contains User data like password hash, salt, username, and account creation date.
-"""
+from django.utils import timezone
 
 
 class User(models.Model):
+    """Contains User data like password hash, salt, username, and account creation date.
+    """
     username = models.CharField(max_length=50,
                                 unique=True,
                                 editable=False,
                                 primary_key=True)
     # Creation date.
-    created = models.DateTimeField(auto_now_add=True)
+    created = models.DateTimeField(default=timezone.now)
     password_hash = models.BinaryField(max_length=64)
     password_salt = models.BinaryField(max_length=64)
 
 
-"""The polls which will be listed in the home page.
-"""
-
 
 class Poll(models.Model):
+    """The polls which will be listed in the home page.
+    """
     name = models.CharField(max_length=100, default='Unnamed Poll')
     # Id of who created the poll.
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -34,11 +34,10 @@ class Poll(models.Model):
     pub_date = models.DateTimeField()
 
 
-"""Reponse of the polls.
-"""
-
 
 class Response(models.Model):
+    """Reponse of the polls.
+    """
     # What poll does this response belong to?
     question = models.ForeignKey(Poll, on_delete=models.CASCADE)
     # Who wrote this response? NULL if the one who responded is not authenticated.
@@ -52,11 +51,11 @@ class Response(models.Model):
     value = models.CharField(max_length=200)
 
 
-"""Used to keep users logged in.
-"""
 
 
 class Session(models.Model):
+    """Used to keep users logged in.
+    """
     # The user the session belongs to.
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     # The time this session was last accessed.

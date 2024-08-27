@@ -1,5 +1,5 @@
-from django.test import TestCase
 from json import dumps, loads
+from django.test import TestCase
 
 # to store session cookie
 session = None
