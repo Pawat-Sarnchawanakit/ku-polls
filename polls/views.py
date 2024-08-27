@@ -81,7 +81,7 @@ def auth(request: HttpRequest):
 
 def main(request: HttpRequest):
     """Returns home page otherwise display 404 error."""
-    if len(request.path) <= 1:
+    if len(request.path) <= 1 or request.path == "/polls" or request.path == "/polls/":
         return FileResponse(open(FRONTEND.joinpath("index.html"), "rb"))
     return HttpResponse(
         "<h1 style=\"text-align: center; margin: auto\">404</h1>"
