@@ -7,7 +7,7 @@
         <div class="grid">
             <a v-for="itm in list" :href="'/poll/' + itm.id">
                 <div :style="{ 'background-image': 'url(' + itm.image + ')' }" class="grid-itm">
-                    <h3>{{ itm.name }}</h3>
+                    <h3>{{ itm.name }} {{ itm.open ? "(Open)" : "(Closed)" }}</h3>
                 </div>
             </a>
         </div>

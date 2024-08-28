@@ -15,6 +15,8 @@ urlpatterns = static(
         path("polls", BasicView.as_view(), name="polls"),
         path("auth", BasicView.as_view(), name="auth"),
         path("login", lambda r: redirect("polls:auth")),
+        path("admin", lambda r: redirect("polls:create")),
+        path("create/", BasicView.as_view(), name="create"),
         path("create/<int:poll_id>", BasicView.as_view(), name="create"),
         path("poll/<int:poll_id>", BasicView.as_view(), name="poll"),
         path("polls/<int:poll_id>",

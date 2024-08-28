@@ -5,6 +5,7 @@ import secrets
 from datetime import timedelta
 from django.db import models
 from django.utils import timezone
+from django.db.models import Count
 
 
 def get_or_none(model_class, **kwargs):
@@ -134,9 +135,27 @@ class Poll(models.Model):
     # The actual poll data in yaml.
     yaml = models.CharField(max_length=4096 * 8)
     # The date the poll is published.
-    pub_date = models.DateTimeField()
+    pub_date = models.DateTimeField(default=timezone.now)
     # The date the poll won't accept a  ny more answers.
     end_date = models.DateTimeField(null=True, default=None)
+
+    def get_responses(self) -> dict:
+        """Get the responses.
+
+        Returns:
+            The response dict, with value and count.
+        """
+        responses_list = Response.objects.filter(question=self) \
+            .values("key", "value") \
+            .annotate(count=Count("value"))
+        responses_dict = dict()
+        for v in responses_list:
+            val = responses_dict.get(v["key"])
+            if val is None:
+                val = []
+                responses_dict[v["key"]] = val
+            val.append({"value": v["value"], "count": v["count"]})
+        return responses_dict
 
     def is_published(self) -> bool:
         """Check whether the poll is accepting responses.
@@ -144,12 +163,23 @@ class Poll(models.Model):
         Returns:
             bool: True if the poll is accepting responses otherwise False.
         """
-        now = timezone.now()
-        if self.pub_date > now:
-            return False
-        if self.end_date is not None and now >= self.end_date:
-            return False
-        return True
+        return self.pub_date <= timezone.now()
+
+    def is_closed(self) -> bool:
+        """Check whether the poll has already been closed.
+
+        Returns:
+            bool: True if the poll is already closed.
+        """
+        return self.end_date is not None and timezone.now() >= self.end_date
+
+    def is_visible(self) -> bool:
+        """Return true if the poll should be listed.
+
+        Returns:
+            True if the poll should be listed.
+        """
+        return self.is_published() and not self.is_closed()
 
     def can_vote(self, user: User | None) -> bool:
         """Check if a user can vote.
@@ -163,7 +193,7 @@ class Poll(models.Model):
         Returns:
             bool: Whether they can vote.
         """
-        if not self.is_published():
+        if not self.is_visible():
             return False
         # 0 means allow anyone to vote.
         if self.allow == 0:
@@ -190,7 +220,7 @@ class Poll(models.Model):
             bool: Whether such person can view the poll.
         """
         return (user is not None
-                and user == self.creator) or self.is_published()
+                and user == self.creator) or self.can_vote(user)
 
     def requires_auth(self):
         """Check whether the poll requires authentication to submit.

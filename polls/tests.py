@@ -1,7 +1,91 @@
 """Contain tests."""
 from json import dumps, loads
+from datetime import timedelta
 from django.test import TestCase
-from polls.models import User
+from django.utils import timezone
+from polls.models import User, Poll
+
+
+def create_test_user() -> User:
+    """Create a test user."""
+    return User.objects.create(username="user",
+                               password_hash=b"",
+                               password_salt=b"")
+
+
+class PollTest(TestCase):
+    """Test Poll methods."""
+
+    def test_is_published_future(self):
+        """Check `is_published` for future polls."""
+        pub_date = timezone.now() + timedelta(days=5)
+        poll = Poll.objects.create(name="Test Poll",
+                                   creator=create_test_user(),
+                                   allow=0,
+                                   res=0,
+                                   image="",
+                                   yaml="Test Data",
+                                   pub_date=pub_date)
+        self.assertFalse(poll.is_published())
+
+    def test_is_published_now(self):
+        """Check `is_published` for current polls."""
+        poll = Poll.objects.create(name="Test Poll",
+                                   creator=create_test_user(),
+                                   allow=0,
+                                   res=0,
+                                   image="",
+                                   yaml="Test Data")
+        self.assertTrue(poll.is_published())
+
+    def test_is_published_past(self):
+        """Check `is_published` for past polls."""
+        pub_date = timezone.now() - timedelta(days=5)
+        poll = Poll.objects.create(name="Test Poll",
+                                   creator=create_test_user(),
+                                   allow=0,
+                                   res=0,
+                                   image="",
+                                   yaml="Test Data",
+                                   pub_date=pub_date)
+        self.assertTrue(poll.is_published())
+
+    def test_can_vote_future(self):
+        """Check `can_vote` for future polls."""
+        pub_date = timezone.now() + timedelta(days=5)
+        poll = Poll.objects.create(name="Test Poll",
+                                   creator=create_test_user(),
+                                   allow=0,
+                                   res=0,
+                                   image="",
+                                   yaml="Test Data",
+                                   pub_date=pub_date)
+        self.assertFalse(poll.can_vote(None))
+
+    def test_can_vote_current(self):
+        """Check `can_vote` for current polls."""
+        pub_date = timezone.now()
+        poll = Poll.objects.create(name="Test Poll",
+                                   creator=create_test_user(),
+                                   allow=0,
+                                   res=0,
+                                   image="",
+                                   yaml="Test Data",
+                                   pub_date=pub_date)
+        self.assertTrue(poll.can_vote(None))
+
+    def test_can_vote_closed(self):
+        """Check `can_vote` for closed polls."""
+        pub_date = timezone.now() - timedelta(days=5)
+        poll = Poll.objects.create(name="Test Poll",
+                                   creator=create_test_user(),
+                                   allow=0,
+                                   res=0,
+                                   image="",
+                                   yaml="Test Data",
+                                   end_date=timezone.now() - timedelta(days=2),
+                                   pub_date=pub_date)
+        self.assertFalse(poll.can_vote(None))
 
 
 class APITest(TestCase):
@@ -17,17 +101,6 @@ class APITest(TestCase):
         To stop the rollback of the database for every test.
         """
         return
-
-    def test_a_list_empty(self):
-        """Get the list of polls.
-
-        The list should be empty, no polls are added yet.
-        """
-        response = self.client.post("/gyatt",
-                                    data=dumps({"f": "list"}),
-                                    content_type='application/json')
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, b'[]')
 
     def test_b_create_account(self):
         """Create an account."""
@@ -77,6 +150,9 @@ class APITest(TestCase):
                                     }),
                                     content_type='application/json')
         self.assertEqual(response.status_code, 200)
+        poll = Poll.objects.get(id=1)
+        self.assertEqual(poll.name, "New Poll")
+        self.assertEqual(poll.image, "https://localhost:80/logo.png")
 
     def test_e_get_poll(self):
         """Get a poll."""
@@ -102,17 +178,6 @@ class APITest(TestCase):
                                     content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, b"n")
-
-    def test_g_list_one(self):
-        """List one poll."""
-        response = self.client.post("/gyatt",
-                                    data=dumps({"f": "list"}),
-                                    content_type='application/json')
-        self.assertEqual(response.status_code, 200)
-        data = loads(response.content)
-        self.assertEqual(len(data), 1)
-        self.assertEqual(data[0]["name"], "New Poll")
-        self.assertEqual(data[0]["image"], "https://localhost:80/logo.png")
 
     def test_f_submit(self):
         """Submit the poll response."""
@@ -147,14 +212,8 @@ class APITest(TestCase):
     def test_h_res(self):
         """Submit the poll response."""
         self.client.cookies = self.__class__.session
-        response = self.client.post("/gyatt",
-                                    data=dumps({
-                                        "f": "res",
-                                        "n": "1"
-                                    }),
-                                    content_type='application/json')
-        self.assertEqual(response.status_code, 200)
-        data = loads(response.content)
+        poll = Poll.objects.get(id=1)
+        data = poll.get_responses()
         self.assertIsNone(data.get("test_key"))
         self.assertIsNotNone(data.get("test_key2"))
         self.assertEqual(data.get("test_key2")[0].get("value"), "test_val2")

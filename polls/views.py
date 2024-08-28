@@ -5,7 +5,6 @@ from pathlib import Path
 from json import loads, dumps
 from django.shortcuts import redirect, render
 from django.http import HttpResponse, HttpRequest, FileResponse
-from django.db.models import Count
 from django.utils import timezone
 from django.views import View
 from django.db.models import Q
@@ -110,13 +109,13 @@ class RPCHandler(View):
         elif not isinstance(c, int):
             return HttpResponse("End must be an int.", status=400)
         else:
-            c = datetime.utcfromtimestamp(c)
+            c = timezone.make_aware(datetime.utcfromtimestamp(c))
         if b is None:
             b = timezone.now()
         elif not isinstance(b, int):
             return HttpResponse("Begin must be an int.", status=400)
         else:
-            b = datetime.utcfromtimestamp(b)
+            b = timezone.make_aware(datetime.utcfromtimestamp(b))
         if e:
             cur_poll = get_or_none(Poll, id=e)
             if cur_poll is None:
@@ -151,17 +150,7 @@ class RPCHandler(View):
             return HttpResponse("Poll does not exist.", status=404)
         if not poll.can_view_responses(user):
             return HttpResponse("Forbidden", status=403)
-        responses_list = Response.objects.filter(question=poll) \
-            .values("key", "value") \
-            .annotate(count=Count("value"))
-        responses_dict = dict()
-        for v in responses_list:
-            val = responses_dict.get(v["key"])
-            if val is None:
-                val = []
-                responses_dict[v["key"]] = val
-            val.append({"value": v["value"], "count": v["count"]})
-        return HttpResponse(dumps(responses_dict))
+        return HttpResponse(dumps(poll.get_responses()))
 
     def fn_aa(self, request: HttpRequest, n: str):
         """Check whether the poll is already answered."""
@@ -199,13 +188,13 @@ class RPCHandler(View):
         poll = get_or_none(Poll, id=n)
         if poll is None:
             return HttpResponse("Not found", status=404)
-        if not poll.can_view(user):
-            return HttpResponse("Forbidden", status=403)
         return HttpResponse(
             dumps({
                 "is_creator": user is not None and poll.creator == user,
-                "login": user is None and poll.requires_auth(),
-                "yaml": poll.yaml,
+                "can_vote": poll.can_vote(user),
+                "can_res": poll.can_view_responses(user),
+                "closed": poll.is_closed(),
+                "yaml": poll.yaml if poll.can_view(user) else None,
             }))
 
 
@@ -232,22 +221,32 @@ class BasicView(View):
         now = timezone.now()
         polls = list(
             Poll.objects.filter(
-                Q(pub_date__lte=now)
-                & (Q(end_date__isnull=True)
-                   | Q(end_date__gt=now))).order_by("-pub_date")[:100].values(
-                       "id", "name", "image"))
-        return render(request, "index.html", {"data": dumps(polls)})
+                pub_date__lte=now).order_by("-pub_date")[:100])
+        return render(
+            request, "index.html", {
+                "data":
+                dumps([{
+                    "id": poll.id,
+                    "name": poll.name,
+                    "image": poll.image,
+                    "open": poll.end_date is None or poll.end_date >= now
+                } for poll in polls])
+            })
 
-    def view_create(self, request: HttpRequest, poll_id: int) -> HttpResponse:
+    def view_create(self,
+                    request: HttpRequest,
+                    poll_id: int = None) -> HttpResponse:
         """Display the poll creator view."""
         user = check_auth(request)
         if user is None:
             return redirect("polls:auth")
-        poll = get_or_none(Poll, id=poll_id)
-        if poll is None:
-            messages.add_message(request, messages.ERROR, "Poll not found.")
-            return render(request, "error_message.html",
-                          {"header": "Failed to load poll"})
+        if poll_id is not None:
+            poll = get_or_none(Poll, id=poll_id)
+            if poll is None:
+                messages.add_message(request, messages.ERROR,
+                                     "Poll not found.")
+                return render(request, "error_message.html",
+                              {"header": "Failed to load poll"})
         return FileResponse(
             open(FRONTEND.joinpath("create", "index.html"), "rb"))
 
@@ -258,6 +257,9 @@ class BasicView(View):
             messages.add_message(request, messages.ERROR, "Poll not found.")
             return render(request, "error_message.html",
                           {"header": "Failed to load poll"})
+        user = check_auth(request)
+        if user is None and poll.requires_auth():
+            return redirect("polls:auth")
         return FileResponse(open(FRONTEND.joinpath("poll", "index.html"),
                                  "rb"))
 
@@ -271,29 +273,17 @@ class BasicView(View):
         user = check_auth(request)
         if not poll.can_view_responses(user):
             messages.add_message(
-                request, messages.ERROR,
-                "You do not have permission to"
-                "view the responses of this poll."
-            )
+                request, messages.ERROR, "You do not have permission to"
+                "view the responses of this poll.")
             return render(request, "error_message.html",
                           {"header": "Access denied"})
-        responses_list = Response.objects.filter(question=poll) \
-            .values("key", "value") \
-            .annotate(count=Count("value"))
-        responses_dict = dict()
-        for v in responses_list:
-            val = responses_dict.get(v["key"])
-            if val is None:
-                val = []
-                responses_dict[v["key"]] = val
-            val.append({"value": v["value"], "count": v["count"]})
         return render(
             request, "res/index.html", {
                 "data":
                 dumps({
                     "can_view": poll.can_view(user),
                     "can_edit": user is not None and user == poll.creator,
-                    "responses": responses_dict,
+                    "responses": poll.get_responses(),
                     "yaml": poll.yaml,
                     "id": poll_id
                 })
