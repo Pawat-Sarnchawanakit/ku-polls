@@ -3,7 +3,7 @@ run-name: ${{ github.actor }} is testing the project.
 on:
   push:
     branches:
-      - master
+      - main
   workflow_dispatch:
 
 jobs:
@@ -16,5 +16,11 @@ jobs:
           python-version: '3.12.3'
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Set Environments
+        run: |
+              echo SECRET_KEY="django-insecure-&+b!t4pt!38n*)4fe=&o6sdwf3+zscn&sty!h4ho-vqca+snd_" > .env
+              echo DEBUG=True >> .env
+              echo ALLOWED_HOSTS=localhost >> .env
+              echo TIME_ZONE=Asia/Bangkok >> .env
       - name: Run tests
         run: python ./manage.py test
