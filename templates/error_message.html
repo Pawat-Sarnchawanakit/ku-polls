@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<body>
+    {% if messages %}
+    <h1>{{ header }}</h1>
+    <div class="messages">
+        {% for message in messages %}
+        <p{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</p>
+        {% endfor %}
+    </div>
+    <a href="{% url 'polls:polls' %}">Go back to polls</a>
+    {% endif %}
+</body>
+
+<style>
+    * {
+        color: #FFF;
+    }
+    div {
+        background-color: #1B1B1B;
+        border-radius: 10px;
+        width: 600px;
+        margin: auto;
+        padding: 10px;
+    }
+    a {
+        display: block;
+        text-align: center;
+        margin: auto;
+        margin-top: 30px;
+    }
+    h1 {
+        text-align: center;
+        margin: auto;
+        margin-bottom: 20px;
+    }
+    p {
+        text-align: center;
+        font-size: 16pt;
+    }
+    body {
+        background-color: #2B2B2B;
+    }
+    .error {
+        color: #F00;
+    }
+    .warn {
+        color: #FA0;
+    }
+    .info {
+        color: #0AF;
+    }
+</style>

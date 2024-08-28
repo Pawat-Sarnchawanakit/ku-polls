@@ -7,6 +7,7 @@
     <div style="display: flex;justify-content: space-evenly;">
       <button @click="create">{{ create_btn_msg }}</button>
       <button @click="preview">Preview</button>
+      <button><a href="/auth">Polls</a></button>
     </div>
   </div>
 </template>
@@ -48,7 +49,7 @@ const create_btn_msg = ref("Create");
 const dlg = ref(null);
 const script_editor = ref(null);
 
-function setupDialog(caption, header, caption_color="#FFF", header_color="#FFF") {
+function setupDialog(caption, header, caption_color="#FFF", header_color="#FFF", index=false) {
   dlg.value.innerHTML = '';
   const header_element = document.createElement("h1");
   header_element.setAttribute("style", "color: " + header_color + ";margin: auto;margin-top: 0;text-align: center");
@@ -58,6 +59,13 @@ function setupDialog(caption, header, caption_color="#FFF", header_color="#FFF")
   content_element.setAttribute("style", "color: " + caption_color);
   content_element.innerText = caption;
   dlg.value.appendChild(content_element);
+  if(index) {
+    const idx = document.createElement("a");
+    idx.setAttribute("href", "/");
+    idx.innerText = "Go back to polls";
+    idx.setAttribute("style", "color: #60F;margin: auto;margin-top: 0;text-align: center");
+    dlg.value.appendChild(idx);
+  }
   const hint_element = document.createElement("p");
   hint_element.setAttribute("style", "color: #FFF;margin: auto;margin-top: 0;text-align: center");
   hint_element.innerText = "Press ESC to close";
@@ -69,8 +77,10 @@ let example =
 image: "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fwww.stock-free.org%2Fimages%2Fstock-free-test-photo-07092015-16.jpg&f=1&nofb=1&ipt=8fe8731f129a2098c9e0a559a7f987f32e7d832a6fbee15968c9a1b4aed2a9d5&ipo=images"
 allow: CLIENT
 res: '*'
-# Time the poll is available, in Unix time.
+# The time the poll is available, in Unix time.
 begin: ${new Date/1E3|0}
+# The time the poll is no longer accepting responses, in Unix time.
+# end: ${(new Date/1E3|0) + 604800}
 poll:
     - info:
         type: LABEL
@@ -135,12 +145,13 @@ function create() {
       a: res.yaml.allow,
       r: res.yaml.res,
       b: res.yaml.begin,
+      c: res.yaml.end,
       e: poll_id,
       y: yml
     })
   }).then(res => {
     if(res.ok) {
-      setupDialog("Created", "Info");
+      setupDialog("Created", "Info", "#FFF", "#FFF", true);
       dlg.value.showModal();
       return;
     }

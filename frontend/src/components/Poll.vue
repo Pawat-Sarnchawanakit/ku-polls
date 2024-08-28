@@ -54,8 +54,8 @@ import home_img from './../assets/home.svg?url';
 import edit_img from './../assets/edit.svg?url';
 import bars_img from './../assets/bars.svg?url';
 var mounted = false;
-const can_view_res = ref(true);
-const is_creator = ref(true);
+const can_view_res = ref(false);
+const is_creator = ref(false);
 const dlg_col = ref("#FFF")
 const dlg_text = ref("Please answer all questions.");
 const dlg = ref(false);
@@ -74,53 +74,75 @@ function edit_poll() {
 }
 
 async function onYamlLoaded(body) {
-    const result = validate_yaml(body);
-    if(!result.ok) {
-        submitted = true;
-        dlg_col.value = "#F00";
-        dlg_text.value = result.message;
-        dlg.value.showModal();
-        return;
-    }
-    if(result.res == 0)
-        can_view_res.value = true;
-    poll_data = result.yaml;
-    submitted = true;
-    if(poll_data.allow == 0) {
-        submitted = false;
-    } else {
-        if((poll_data.allow & AllowType.CLIENT) != 0) {
-            if(localStorage.getItem("answered_" + poll_id) == 'y') {
-                dlg_col.value = "#FFF";
-                dlg_text.value = "You already answered this poll.";
-                dlg.value.showModal();
-                submitted = true;
-            } else submitted = false;
-        }
-        // console.log(submitted, poll_data.allow, AllowType.AUTH, (poll_data.allow & AllowType.AUTH) != 0);
-        if(submitted && (poll_data.allow & AllowType.AUTH) != 0) {
+    if(body.yaml != null) {
+        const result = validate_yaml(body.yaml);
+        if(!result.ok) {
             submitted = true;
-            const res = await fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    f: "aa",
-                    n: poll_id,
-                })
-            });
-            const body = await res.text()
-            if(body != 'y')
-                submitted = false;
-            else {
-                dlg_col.value = "#FFF";
-                dlg_text.value = "You already answered this poll.";
-                dlg.value.showModal();
+            dlg_col.value = "#F00";
+            dlg_text.value = result.message;
+            dlg.value.showModal();
+            return;
+        }
+        if(result.res == 0)
+            can_view_res.value = true;
+        poll_data = result.yaml;
+        submitted = true;
+        if(poll_data.allow == 0) {
+            submitted = false;
+        } else {
+            if((poll_data.allow & AllowType.CLIENT) != 0) {
+                if(localStorage.getItem("answered_" + poll_id) == 'y') {
+                    dlg_col.value = "#FFF";
+                    dlg_text.value = "You already answered this poll.";
+                    dlg.value.showModal();
+                    submitted = true;
+                } else submitted = false;
+            }
+            // console.log(submitted, poll_data.allow, AllowType.AUTH, (poll_data.allow & AllowType.AUTH) != 0);
+            if(submitted && (poll_data.allow & AllowType.AUTH) != 0) {
+                submitted = true;
+                const res = await fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        f: "aa",
+                        n: poll_id,
+                    })
+                });
+                const body = await res.text()
+                if(body != 'y')
+                    submitted = false;
+                else {
+                    dlg_col.value = "#FFF";
+                    dlg_text.value = "You already answered this poll.";
+                    dlg.value.showModal();
+                }
             }
         }
+        display_poll(poll.value, poll_data);
+    } else {
+        const msg = document.createElement("h1");
+        msg.innerText = "You don't have permission to view this poll.";
+        msg.style.color = "#FFF";
+        msg.style.margin = "auto";
+        msg.style.textAlign = "center";
+        poll.value.appendChild(msg);
     }
-    display_poll(poll.value, poll_data);
+    
+    
+    if(body.closed) {
+        submitted = true;
+        dlg_col.value = "#F00";
+        dlg_text.value = "This poll is already closed.";
+        dlg.value.showModal();
+    } else if(!body.can_vote) {
+        submitted = true;
+        dlg_col.value = "#F00";
+        dlg_text.value = "You do not have permission to vote in this poll.";
+        dlg.value.showModal();
+    }
     if(!submitted)
         loaded.value = true;
 }
@@ -137,10 +159,10 @@ fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
 }).then(res => res.json().then((body) => {
     if(body.is_creator)
         is_creator.value = true;
-    if(body.login)
-        window.location.href = window.location.protocol + "//" + window.location.host + "/login";
+    if(body.can_res)
+        can_view_res.value = true;
     if(mounted)
-        return onYamlLoaded(body.yaml)
+        return onYamlLoaded(body)
     return onMounted(() => onYamlLoaded(body.yaml));
 }));
 // onMounted(() => {
@@ -201,6 +223,8 @@ function submit() {
             submitted = false;
             return;
         }
+        if(submitted)
+            loaded.value = false;
         if(poll_data.allow != 0 && (poll_data.allow & AllowType.CLIENT) != 0)
             localStorage.setItem("answered_" + poll_id, 'y');
     })).catch(() => {

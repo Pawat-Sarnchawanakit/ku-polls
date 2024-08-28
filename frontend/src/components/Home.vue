@@ -7,7 +7,7 @@
         <div class="grid">
             <a v-for="itm in list" :href="'/poll/' + itm.id">
                 <div :style="{ 'background-image': 'url(' + itm.image + ')' }" class="grid-itm">
-                    <h3>{{ itm.name }}</h3>
+                    <h3>{{ itm.name }} {{ itm.open ? "(Open)" : "(Closed)" }}</h3>
                 </div>
             </a>
         </div>
@@ -89,15 +89,5 @@ h1, h2, p {
 <script setup>
     import { ref } from 'vue';
     const list = ref([]);
-    fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
-        method: 'POST',
-        headers: {
-        'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            f: "list"
-        })
-    }).then(res => res.json().then(new_list => {
-        list.value = new_list;
-    }));
+    list.value = JSON.parse(document.getElementById("server-data").innerText)
 </script>

@@ -1,37 +1,21 @@
-import secrets
-import hmac
-import enum
+"""Contain views."""
+# pylint: disable=broad-exception-caught
 from datetime import timedelta, datetime
 from pathlib import Path
 from json import loads, dumps
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.http import HttpResponse, HttpRequest, FileResponse
-from django.db.models import Count
 from django.utils import timezone
-from .models import Poll, Response, Session, User
+from django.views import View
+from django.db.models import Q
+from django.contrib import messages
+from .models import Poll, Response, Session, User, get_or_none
 
 FRONTEND = Path(__file__).parents[1].joinpath("frontend", "dist")
 
 
-class AuthType(enum.Enum):
-    Client = 1
-    Auth = 1 << 1
-
-
-class ResType(enum.Enum):
-    Creator = 1
-    Auth = 1 << 1
-
-
-def create(request: HttpRequest):
-    user = check_auth(request)
-    if user is None:
-        return redirect("/auth/")
-    return FileResponse(open(FRONTEND.joinpath("create", "index.html"), "rb"))
-
-
 def check_auth(request: HttpRequest) -> User | None:
-    """Checks whether the user is authenticated.
+    """Check whether the user is authenticated.
 
     Args:
         request (HttpRequest): The request to check.
@@ -39,244 +23,268 @@ def check_auth(request: HttpRequest) -> User | None:
     Returns:
         User | None: The user if authenticated or None.
     """
-    try:
-        session_id = request.COOKIES.get("tk")
-        if session_id is None:
-            return None
-        session = Session.objects.get(session=bytes.fromhex(session_id))
-        if session.accessed <= timezone.now() - timedelta(days=2):
-            session.accessed = timezone.now()
-            session.save()
-        return session.user
-    except Exception as e:
+    session_id = request.COOKIES.get("tk")
+    if session_id is None:
         return None
+    session = get_or_none(Session, session=bytes.fromhex(session_id))
+    if session is None:
+        return None
+    if session.accessed <= timezone.now() - timedelta(days=2):
+        session.accessed = timezone.now()
+        session.save()
+    return session.user
 
 
-def create_session(user: User) -> str:
-    """Creates a session for a user
+class RPCHandler(View):
+    """Handle RPC requests."""
 
-    Args:
-        user (User): The user to create a session for
+    def post(self, request: HttpRequest) -> HttpResponse:
+        """Handle RPC requests."""
+        json_data = loads(request.body)
+        method = json_data.get("f")
+        if not isinstance(method, str):
+            return HttpResponse("Function name is missing or incorrect",
+                                status=400)
+        method = f"fn_{method}"
+        if not hasattr(self, method):
+            return HttpResponse("Function not found", status=404)
+        del json_data["f"]
+        return getattr(self, method)(request, **json_data)
 
-    Returns:
-        string: The session key created.
-    """
-    # Remove sessions older than 30 days.
-    Session.objects.filter(user=user,
-                           accessed__lte=timezone.now() -
-                           timedelta(days=30)).delete()
-    # Create session
-    session_key = secrets.token_bytes(64)
-    session = Session(user=user, session=session_key)
-    session.save()
-    return session_key
-
-
-def auth(request: HttpRequest):
-    """Returns the login/register page."""
-    if check_auth(request) is not None:
-        return redirect("/")
-    return FileResponse(open(FRONTEND.joinpath("auth", "index.html"), "rb"))
-
-
-def main(request: HttpRequest):
-    """Returns home page otherwise display 404 error."""
-    if len(request.path) <= 1 or request.path == "/polls" or request.path == "/polls/":
-        return FileResponse(open(FRONTEND.joinpath("index.html"), "rb"))
-    return HttpResponse(
-        "<h1 style=\"text-align: center; margin: auto\">404</h1>"
-        "<p style=\"text-align: center\">Dumb bitch, go back to your pen.</p>"
-    )
-
-
-def rpc(request: HttpRequest):
-    """Handles RPC requests"""
-    data = None
-    try:
-        data = loads(request.body)
-    except:
-        pass
-    if data is None:
-        return HttpResponse("bad", status=400)
-    func = data.get("f")
-    if func == "login":
-        username = data.get("u", "")
-        password = bytes(data.get("p", ""), 'utf-8')
-        user: User | None = None
-        try:
-            user = User.objects.get(username=username)
-        except:
-            pass
-        if user is None:
+    def fn_login(self, _: HttpRequest, u: str, p: str) -> HttpResponse:
+        """Log the user in."""
+        if not isinstance(u, str):
+            return HttpResponse("Username must be a string", status=400)
+        if not isinstance(p, str):
+            return HttpResponse("Password must be a string", status=400)
+        user = get_or_none(User, username=u)
+        if user is None or not user.check_password(p):
             return HttpResponse("Invalid credentials.", status=400)
-        if not hmac.compare_digest(
-                hmac.digest(user.password_salt, password, "blake2b"),
-                user.password_hash):
-            return HttpResponse("Invalid credentials.", status=400)
-        try:
-            user = User.objects.get(username=username)
-            session = create_session(user)
-            res = HttpResponse("ok")
-            res.set_cookie("tk", session.hex())
-            return res
-        except:
-            return HttpResponse("err", status=500)
-    if func == "regis":
-        username = data.get("u", "")
-        password = bytes(data.get("p", ""), 'utf-8')
-        user: User | None = None
-        try:
-            user = User.objects.get(username=username)
-        except:
-            pass
+        session = user.create_session()
+        response = HttpResponse("ok")
+        response.set_cookie("tk", session.hex())
+        return response
+
+    def fn_regis(self, _: HttpRequest, u: str, p: str) -> HttpResponse:
+        """Register the user."""
+        if not isinstance(u, str):
+            return HttpResponse("Username must be a string", status=400)
+        if not isinstance(p, str):
+            return HttpResponse("Password must be a string", status=400)
+        user = get_or_none(User, username=u)
         if user is not None:
             return HttpResponse("User already exists.", status=400)
-        salt = secrets.token_bytes(64)
-        pw_hash = hmac.digest(salt, password, "blake2b")
-        try:
-            user = User(username=username,
-                        password_hash=pw_hash,
-                        password_salt=salt)
-            user.save()
-            session = create_session(user)
-            res = HttpResponse("ok")
-            res.set_cookie("tk", session.hex())
-            return res
-        except Exception as e:
-            return HttpResponse(str(e), status=500)
-    if func == "create":
+        user: User = User.register(username=u, password=p)
+        session = user.create_session()
+        response = HttpResponse("ok")
+        response.set_cookie("tk", session.hex())
+        return response
+
+    def fn_create(self,
+                  request: HttpRequest,
+                  y: str,
+                  b: int = None,
+                  c: int = None,
+                  e: str = None,
+                  n: str = "Unnamed poll",
+                  i: str = '',
+                  a: int = 0,
+                  r: int = 0) -> HttpResponse:
+        """Create a poll."""
         user = check_auth(request)
         if user is None:
             return HttpResponse("Unauthorized", status=401)
-        if data.get("y") is None:
-            return HttpResponse("bad", status=400)
-        try:
-            poll = None
-            edit = data.get('e')
-            if edit:
-                poll = Poll.objects.get(id=edit)
-                if poll is None:
-                    return HttpResponse("Not found", status=404)
-                if poll.creator != user:
-                    return HttpResponse("Forbidden", status=403)
-                poll.yaml = data["y"]
-                poll.name = data.get("n", 'Unnamed Poll')
-                poll.image = data.get("i", '')
-                poll.allow = int(data.get("a", 0))
-            else:
-                date = data.get('b')
-                print(date)
-                if date is None:
-                    date = timezone.now()
-                else:
-                    date = datetime.utcfromtimestamp(date)
-                poll = Poll(yaml=data.get("y", ''),
-                            name=data.get("n", 'Unnamed Poll'),
-                            res=data.get("r"),
-                            image=data.get("i", ''),
-                            creator=user,
-                            pub_date=date,
-                            allow=int(data.get("a", 0)))
-            poll.save()
-        except Exception as e:
-            return HttpResponse(str(e), status=500)
-        return HttpResponse(poll.id)
-    if func == "list":
-        try:
-            polls = Poll.objects.filter(pub_date__lte=timezone.now()) \
-                .order_by("-pub_date")[:100].values(
-                "id", "name", "image")
-            return HttpResponse(dumps(list(polls)))
-        except Exception as e:
-            return HttpResponse(str(e), status=500)
-    if func == "res":
-        try:
-            user = check_auth(request)
-            poll = Poll.objects.get(id=data.get("n"))
-            if not (((poll.res & ResType.Creator.value) != 0) and \
-                user is not None and poll.creator == user or \
-                poll.res == 0 or \
-                ((poll.res & ResType.Auth.value) != 0) and user is not None):
+        if not isinstance(y, str):
+            return HttpResponse("YAML must be a string.", status=400)
+        if not isinstance(n, str):
+            return HttpResponse("Name must be a string.", status=400)
+        if not isinstance(r, int):
+            return HttpResponse("Res must be an int.", status=400)
+        if not isinstance(i, str):
+            return HttpResponse("Image must be a string.", status=400)
+        if not isinstance(a, int):
+            return HttpResponse("Allow must be an int.", status=400)
+        if c is None:
+            pass
+        elif not isinstance(c, int):
+            return HttpResponse("End must be an int.", status=400)
+        else:
+            c = timezone.make_aware(datetime.utcfromtimestamp(c))
+        if b is None:
+            b = timezone.now()
+        elif not isinstance(b, int):
+            return HttpResponse("Begin must be an int.", status=400)
+        else:
+            b = timezone.make_aware(datetime.utcfromtimestamp(b))
+        if e:
+            cur_poll = get_or_none(Poll, id=e)
+            if cur_poll is None:
+                return HttpResponse("Not found", status=404)
+            if cur_poll.creator != user:
                 return HttpResponse("Forbidden", status=403)
-            ress = Response.objects.filter(question=poll) \
-                .values("key", "value") \
-                .annotate(count=Count("value"))
-            out = dict()
-            for v in ress:
-                val = out.get(v["key"])
-                if val is None:
-                    val = []
-                    out[v["key"]] = val
-                val.append({"value": v["value"], "count": v["count"]})
-            return HttpResponse(dumps(out))
-        except Exception as e:
-            return HttpResponse(str(e), status=500)
-    if func == "aa":
-        try:
-            poll = Poll.objects.get(id=data.get("n"))
+            cur_poll.yaml = y
+            cur_poll.name = n or 'Unnamed Poll'
+            cur_poll.res = r
+            cur_poll.image = i
+            cur_poll.allow = a
+            cur_poll.pub_date = b
+            cur_poll.save()
+            return HttpResponse(cur_poll.id)
+        cur_poll = Poll.objects.create(yaml=y,
+                                       name=n,
+                                       res=r,
+                                       image=i,
+                                       creator=user,
+                                       pub_date=b,
+                                       end_date=c,
+                                       allow=a)
+        return HttpResponse(cur_poll.id)
+
+    def fn_res(self, request: HttpRequest, n: str) -> HttpResponse:
+        """Return the responses and it's count."""
+        if not isinstance(n, str):
+            return HttpResponse("Poll number must be a string.", status=400)
+        user = check_auth(request)
+        poll = get_or_none(Poll, id=n)
+        if poll is None:
+            return HttpResponse("Poll does not exist.", status=404)
+        if not poll.can_view_responses(user):
+            return HttpResponse("Forbidden", status=403)
+        return HttpResponse(dumps(poll.get_responses()))
+
+    def fn_aa(self, request: HttpRequest, n: str):
+        """Check whether the poll is already answered."""
+        poll = get_or_none(Poll, id=n)
+        if poll is None:
+            return HttpResponse("Poll does not exist.", status=404)
+        user = check_auth(request)
+        if user is not None:
+            if Response.objects.filter(submitter=user,
+                                       question=poll).first() is not None:
+                return HttpResponse("y")
+            return HttpResponse("n")
+        return HttpResponse("idk", status=401)
+
+    def fn_submit(self, request: HttpRequest, n: str, r: dict = None):
+        """Submit answers to database."""
+        user = check_auth(request)
+        poll = get_or_none(Poll, id=n)
+        if poll is None:
+            return HttpResponse("Poll does not exist.", status=404)
+        if not poll.can_vote(user):
+            return HttpResponse("Forbidden", status=403)
+        if user is not None:
+            Response.objects.filter(submitter=user).delete()
+        ress = []
+        for k, v in (r or {}).items():
+            ress.append(Response(question=poll, key=k, value=v,
+                                 submitter=user))
+        Response.objects.bulk_create(ress)
+        return HttpResponse("ok")
+
+    def fn_get(self, request: HttpRequest, n: str):
+        """Get a poll."""
+        user = check_auth(request)
+        poll = get_or_none(Poll, id=n)
+        if poll is None:
+            return HttpResponse("Not found", status=404)
+        return HttpResponse(
+            dumps({
+                "is_creator": user is not None and poll.creator == user,
+                "can_vote": poll.can_vote(user),
+                "can_res": poll.can_view_responses(user),
+                "closed": poll.is_closed(),
+                "yaml": poll.yaml if poll.can_view(user) else None,
+            }))
+
+
+class BasicView(View):
+    """Contain basic views like auth, polls, create, and responses."""
+
+    def get(self, request: HttpRequest, **kwargs) -> HttpResponse:
+        """Accept GET request for basic views."""
+        name = request.resolver_match.url_name
+        method = f"view_{name}"
+        if hasattr(self, method):
+            return getattr(self, method)(request, **kwargs)
+        return HttpResponse("Page not found.", status=404)
+
+    def view_auth(self, request: HttpRequest) -> HttpResponse:
+        """Display login/register view."""
+        if check_auth(request) is not None:
+            return redirect("polls:polls")
+        return FileResponse(open(FRONTEND.joinpath("auth", "index.html"),
+                                 "rb"))
+
+    def view_polls(self, request: HttpRequest) -> HttpResponse:
+        """Display a list of polls."""
+        now = timezone.now()
+        polls = list(
+            Poll.objects.filter(
+                pub_date__lte=now).order_by("-pub_date")[:100])
+        return render(
+            request, "index.html", {
+                "data":
+                dumps([{
+                    "id": poll.id,
+                    "name": poll.name,
+                    "image": poll.image,
+                    "open": poll.end_date is None or poll.end_date >= now
+                } for poll in polls])
+            })
+
+    def view_create(self,
+                    request: HttpRequest,
+                    poll_id: int = None) -> HttpResponse:
+        """Display the poll creator view."""
+        user = check_auth(request)
+        if user is None:
+            return redirect("polls:auth")
+        if poll_id is not None:
+            poll = get_or_none(Poll, id=poll_id)
             if poll is None:
-                return HttpResponse("?", status=404)
-            user = check_auth(request)
-            if user is not None:
-                if Response.objects.filter(submitter=user,
-                                           question=poll).first() is not None:
-                    return HttpResponse("y")
-                return HttpResponse("n")
-            return HttpResponse("?", status=401)
-        except Exception as e:
-            return HttpResponse(str(e), status=500)
-    if func == "submit":
-        try:
-            user = check_auth(request)
-            poll = Poll.objects.get(id=data.get("n"))
-            if poll.pub_date > timezone.now():
-                return HttpResponse("Forbidden", status=403)
-            can_submit = poll.allow == 0 or (poll.allow
-                                             & AuthType.Client.value) != 0
-            if not can_submit:
-                if (poll.allow & AuthType.Auth.value) != 0:
-                    if user is not None:
-                        Response.objects.filter(submitter=user,
-                                                question=poll).delete()
-                        can_submit = True
-            if not can_submit:
-                return HttpResponse("Forbidden", status=403)
-            ress = []
-            for k, v in (data.get("r", {})).items():
-                ress.append(
-                    Response(question=poll, key=k, value=v, submitter=user))
-            Response.objects.bulk_create(ress)
-            return HttpResponse("ok")
-        except Exception as e:
-            return HttpResponse(str(e), status=500)
-    if func == "get":
-        try:
-            user = check_auth(request)
-            poll = Poll.objects.get(id=data.get("n"))
-            is_creator = user is not None and poll.creator == user
-            if poll.pub_date > timezone.now() and not is_creator:
-                return HttpResponse("Forbidden", status=403)
-            return HttpResponse(
+                messages.add_message(request, messages.ERROR,
+                                     "Poll not found.")
+                return render(request, "error_message.html",
+                              {"header": "Failed to load poll"})
+        return FileResponse(
+            open(FRONTEND.joinpath("create", "index.html"), "rb"))
+
+    def view_poll(self, request: HttpRequest, poll_id: int) -> HttpResponse:
+        """Return the html file for viewing the poll."""
+        poll = get_or_none(Poll, id=poll_id)
+        if poll is None:
+            messages.add_message(request, messages.ERROR, "Poll not found.")
+            return render(request, "error_message.html",
+                          {"header": "Failed to load poll"})
+        user = check_auth(request)
+        if user is None and poll.requires_auth():
+            return redirect("polls:auth")
+        return FileResponse(open(FRONTEND.joinpath("poll", "index.html"),
+                                 "rb"))
+
+    def view_res(self, request: HttpRequest, poll_id: int) -> HttpResponse:
+        """Return the html file for results."""
+        poll = get_or_none(Poll, id=poll_id)
+        if poll is None:
+            messages.add_message(request, messages.ERROR, "Poll not found.")
+            return render(request, "error_message.html",
+                          {"header": "Failed to load poll responses"})
+        user = check_auth(request)
+        if not poll.can_view_responses(user):
+            messages.add_message(
+                request, messages.ERROR, "You do not have permission to"
+                "view the responses of this poll.")
+            return render(request, "error_message.html",
+                          {"header": "Access denied"})
+        return render(
+            request, "res/index.html", {
+                "data":
                 dumps({
-                    "is_creator":
-                    is_creator,
-                    "login":
-                    user is None
-                    and (poll.allow != 0 and
-                         (poll.allow & AuthType.Client.value) == 0),
-                    "yaml":
-                    poll.yaml,
-                }))
-        except Exception as e:
-            return HttpResponse(str(e), status=500)
-    return HttpResponse("bad", status=400)
-
-
-def poll(_: HttpRequest):
-    """Returns the html file for viewing the poll."""
-    return FileResponse(open(FRONTEND.joinpath("poll", "index.html"), "rb"))
-
-
-def res(_: HttpRequest):
-    """Returns the html file for results."""
-    return FileResponse(open(FRONTEND.joinpath("res", "index.html"), "rb"))
+                    "can_view": poll.can_view(user),
+                    "can_edit": user is not None and user == poll.creator,
+                    "responses": poll.get_responses(),
+                    "yaml": poll.yaml,
+                    "id": poll_id
+                })
+            })
