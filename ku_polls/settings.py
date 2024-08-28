@@ -31,14 +31,28 @@ ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
     'django.contrib.staticfiles',
+    'django.contrib.messages',
     'polls.apps.ApiConfig'
 ]
 
-MIDDLEWARE = []
+MIDDLEWARE = [
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware'
+]
 
 ROOT_URLCONF = 'ku_polls.urls'
-
-TEMPLATES = []
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [Path(BASE_DIR).joinpath('templates')],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                "django.contrib.messages.context_processors.messages"
+            ],
+        },
+    },
+]
 
 
 # Database

@@ -3,12 +3,13 @@
 from datetime import timedelta, datetime
 from pathlib import Path
 from json import loads, dumps
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.http import HttpResponse, HttpRequest, FileResponse
 from django.db.models import Count
 from django.utils import timezone
 from django.views import View
 from django.db.models import Q
+from django.contrib import messages
 from .models import Poll, Response, Session, User, get_or_none
 
 FRONTEND = Path(__file__).parents[1].joinpath("frontend", "dist")
@@ -23,17 +24,16 @@ def check_auth(request: HttpRequest) -> User | None:
     Returns:
         User | None: The user if authenticated or None.
     """
-    try:
-        session_id = request.COOKIES.get("tk")
-        if session_id is None:
-            return None
-        session = Session.objects.get(session=bytes.fromhex(session_id))
-        if session.accessed <= timezone.now() - timedelta(days=2):
-            session.accessed = timezone.now()
-            session.save()
-        return session.user
-    except Exception:
+    session_id = request.COOKIES.get("tk")
+    if session_id is None:
         return None
+    session = get_or_none(Session, session=bytes.fromhex(session_id))
+    if session is None:
+        return None
+    if session.accessed <= timezone.now() - timedelta(days=2):
+        session.accessed = timezone.now()
+        session.save()
+    return session.user
 
 
 class RPCHandler(View):
@@ -196,7 +196,9 @@ class RPCHandler(View):
     def fn_get(self, request: HttpRequest, n: str):
         """Get a poll."""
         user = check_auth(request)
-        poll = Poll.objects.get(id=n)
+        poll = get_or_none(Poll, id=n)
+        if poll is None:
+            return HttpResponse("Not found", status=404)
         if not poll.can_view(user):
             return HttpResponse("Forbidden", status=403)
         return HttpResponse(
@@ -210,12 +212,12 @@ class RPCHandler(View):
 class BasicView(View):
     """Contain basic views like auth, polls, create, and responses."""
 
-    def get(self, request: HttpRequest) -> HttpResponse:
+    def get(self, request: HttpRequest, **kwargs) -> HttpResponse:
         """Accept GET request for basic views."""
         name = request.resolver_match.url_name
         method = f"view_{name}"
         if hasattr(self, method):
-            return getattr(self, method)(request)
+            return getattr(self, method)(request, **kwargs)
         return HttpResponse("Page not found.", status=404)
 
     def view_auth(self, request: HttpRequest) -> HttpResponse:
@@ -229,19 +231,42 @@ class BasicView(View):
         """Display a list of polls."""
         return FileResponse(open(FRONTEND.joinpath("index.html"), "rb"))
 
-    def view_create(self, request: HttpRequest) -> HttpResponse:
+    def view_create(self, request: HttpRequest, poll_id: int) -> HttpResponse:
         """Display the poll creator view."""
         user = check_auth(request)
         if user is None:
             return redirect("polls:auth")
+        poll = get_or_none(Poll, id=poll_id)
+        if poll is None:
+            messages.add_message(request, messages.ERROR, "Poll not found.")
+            return render(request, "error_message.html",
+                          {"header": "Failed to load poll"})
         return FileResponse(
             open(FRONTEND.joinpath("create", "index.html"), "rb"))
 
-    def view_poll(self, _: HttpRequest) -> HttpResponse:
+    def view_poll(self, request: HttpRequest, poll_id: int) -> HttpResponse:
         """Return the html file for viewing the poll."""
+        poll = get_or_none(Poll, id=poll_id)
+        if poll is None:
+            messages.add_message(request, messages.ERROR, "Poll not found.")
+            return render(request, "error_message.html",
+                          {"header": "Failed to load poll"})
         return FileResponse(open(FRONTEND.joinpath("poll", "index.html"),
                                  "rb"))
 
-    def view_res(self, _: HttpRequest) -> HttpResponse:
+    def view_res(self, request: HttpRequest, poll_id: int) -> HttpResponse:
         """Return the html file for results."""
+        poll = get_or_none(Poll, id=poll_id)
+        if poll is None:
+            messages.add_message(request, messages.ERROR, "Poll not found.")
+            return render(request, "error_message.html",
+                          {"header": "Failed to load poll responses"})
+        user = check_auth(request)
+        if not poll.can_view_responses(user):
+            messages.add_message(
+                request, messages.ERROR,
+                "You do not have permission to view the responses of this poll."
+            )
+            return render(request, "error_message.html",
+                          {"header": "Access denied"})
         return FileResponse(open(FRONTEND.joinpath("res", "index.html"), "rb"))
