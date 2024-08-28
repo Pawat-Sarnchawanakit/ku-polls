@@ -69,8 +69,10 @@ let example =
 image: "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fwww.stock-free.org%2Fimages%2Fstock-free-test-photo-07092015-16.jpg&f=1&nofb=1&ipt=8fe8731f129a2098c9e0a559a7f987f32e7d832a6fbee15968c9a1b4aed2a9d5&ipo=images"
 allow: CLIENT
 res: '*'
-# Time the poll is available, in Unix time.
+# The time the poll is available, in Unix time.
 begin: ${new Date/1E3|0}
+# The time the poll is no longer accepting responses, in Unix time.
+# end: ${(new Date/1E3|0) + 604800}
 poll:
     - info:
         type: LABEL
@@ -135,6 +137,7 @@ function create() {
       a: res.yaml.allow,
       r: res.yaml.res,
       b: res.yaml.begin,
+      c: res.yaml.end,
       e: poll_id,
       y: yml
     })

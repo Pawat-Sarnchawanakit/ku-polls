@@ -89,15 +89,5 @@ h1, h2, p {
 <script setup>
     import { ref } from 'vue';
     const list = ref([]);
-    fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
-        method: 'POST',
-        headers: {
-        'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            f: "list"
-        })
-    }).then(res => res.json().then(new_list => {
-        list.value = new_list;
-    }));
+    list.value = JSON.parse(document.getElementById("server-data").innerText)
 </script>

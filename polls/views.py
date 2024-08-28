@@ -85,6 +85,7 @@ class RPCHandler(View):
                   request: HttpRequest,
                   y: str,
                   b: int = None,
+                  c: int = None,
                   e: str = None,
                   n: str = "Unnamed poll",
                   i: str = '',
@@ -104,6 +105,12 @@ class RPCHandler(View):
             return HttpResponse("Image must be a string.", status=400)
         if not isinstance(a, int):
             return HttpResponse("Allow must be an int.", status=400)
+        if c is None:
+            pass
+        elif not isinstance(c, int):
+            return HttpResponse("End must be an int.", status=400)
+        else:
+            c = datetime.utcfromtimestamp(c)
         if b is None:
             b = timezone.now()
         elif not isinstance(b, int):
@@ -130,16 +137,9 @@ class RPCHandler(View):
                                        image=i,
                                        creator=user,
                                        pub_date=b,
+                                       end_date=c,
                                        allow=a)
         return HttpResponse(cur_poll.id)
-
-    def fn_list(self, _: HttpRequest) -> HttpResponse:
-        """List active polls."""
-        now = timezone.now()
-        polls = list(Poll.objects.filter(Q(pub_date__lte=now) & (Q(end_date__isnull=True) | Q(end_date__gt=now)), ) \
-            .order_by("-pub_date")[:100].values(
-            "id", "name", "image"))
-        return HttpResponse(dumps(polls))
 
     def fn_res(self, request: HttpRequest, n: str) -> HttpResponse:
         """Return the responses and it's count."""
@@ -227,9 +227,16 @@ class BasicView(View):
         return FileResponse(open(FRONTEND.joinpath("auth", "index.html"),
                                  "rb"))
 
-    def view_polls(self, _: HttpRequest) -> HttpResponse:
+    def view_polls(self, request: HttpRequest) -> HttpResponse:
         """Display a list of polls."""
-        return FileResponse(open(FRONTEND.joinpath("index.html"), "rb"))
+        now = timezone.now()
+        polls = list(
+            Poll.objects.filter(
+                Q(pub_date__lte=now)
+                & (Q(end_date__isnull=True)
+                   | Q(end_date__gt=now))).order_by("-pub_date")[:100].values(
+                       "id", "name", "image"))
+        return render(request, "index.html", {"data": dumps(polls)})
 
     def view_create(self, request: HttpRequest, poll_id: int) -> HttpResponse:
         """Display the poll creator view."""
@@ -265,8 +272,29 @@ class BasicView(View):
         if not poll.can_view_responses(user):
             messages.add_message(
                 request, messages.ERROR,
-                "You do not have permission to view the responses of this poll."
+                "You do not have permission to"
+                "view the responses of this poll."
             )
             return render(request, "error_message.html",
                           {"header": "Access denied"})
-        return FileResponse(open(FRONTEND.joinpath("res", "index.html"), "rb"))
+        responses_list = Response.objects.filter(question=poll) \
+            .values("key", "value") \
+            .annotate(count=Count("value"))
+        responses_dict = dict()
+        for v in responses_list:
+            val = responses_dict.get(v["key"])
+            if val is None:
+                val = []
+                responses_dict[v["key"]] = val
+            val.append({"value": v["value"], "count": v["count"]})
+        return render(
+            request, "res/index.html", {
+                "data":
+                dumps({
+                    "can_view": poll.can_view(user),
+                    "can_edit": user is not None and user == poll.creator,
+                    "responses": responses_dict,
+                    "yaml": poll.yaml,
+                    "id": poll_id
+                })
+            })

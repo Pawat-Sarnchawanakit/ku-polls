@@ -54,8 +54,8 @@ import home_img from './../assets/home.svg?url';
 import edit_img from './../assets/edit.svg?url';
 import bars_img from './../assets/bars.svg?url';
 var mounted = false;
-const can_view_res = ref(true);
-const is_creator = ref(true);
+const can_view_res = ref(false);
+const is_creator = ref(false);
 const dlg_col = ref("#FFF")
 const dlg_text = ref("Please answer all questions.");
 const dlg = ref(false);

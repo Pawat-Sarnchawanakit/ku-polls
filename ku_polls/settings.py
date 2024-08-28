@@ -11,27 +11,27 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
-SECRET_KEY = 'django-insecure-&+b!t4pt!38n*)4fe=&o6sdwf3+zscn&sty!h4ho-vqca+snd_'
+SECRET_KEY = config("SECRET_KEY", cast=str)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = config('ALLOWED_HOSTS',
+                       default=[],
+                       cast=lambda v: [s.strip() for s in v.split(',')])
 
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.staticfiles',
-    'django.contrib.messages',
+    'django.contrib.staticfiles', 'django.contrib.messages',
     'polls.apps.ApiConfig'
 ]
 
@@ -44,16 +44,14 @@ ROOT_URLCONF = 'ku_polls.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [Path(BASE_DIR).joinpath('templates')],
+        'DIRS': [ Path(BASE_DIR).joinpath('templates'), Path(BASE_DIR).joinpath('frontend', 'dist') ],
         'APP_DIRS': True,
         'OPTIONS': {
-            'context_processors': [
-                "django.contrib.messages.context_processors.messages"
-            ],
+            'context_processors':
+            ["django.contrib.messages.context_processors.messages"],
         },
     },
 ]
-
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
@@ -65,24 +63,21 @@ DATABASES = {
     }
 }
 
-
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = []
-
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = config("TIME_ZONE", cast=str)
 
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
