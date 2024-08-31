@@ -10,16 +10,11 @@ https://cpske.github.io/ISP) course at [Kasetsart University](https://www.ku.ac.
 
 ## Install and Run
 ### Requirements: 
- - Node JS
  - Python 3.12.3  
 ### Install:  
  - `$ python -m venv .venv`
  - Activate the created virtual environment.
  - `$ pip install -r requirements.txt`
- - `$ cd ./frontend`
- - `$ npm install`
- - `$ npm run build`
- - `$ cd ..`  
  - `$ python ./manage.py migrate`
 ### Run:  
  - `$ python ./manage.py runserver`
