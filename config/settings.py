@@ -36,7 +36,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = []
 
-ROOT_URLCONF = 'ku_polls.urls'
+ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = []
 

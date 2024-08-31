@@ -1,5 +1,6 @@
 from pathlib import Path
 from django.urls import re_path, path
+from django.shortcuts import redirect
 from django.conf.urls.static import static
 from .views import main, poll, rpc, create, auth, res
 
@@ -10,5 +11,6 @@ urlpatterns = static("/assets/", document_root=Path(__file__).parents[1].joinpat
     path("gyatt", rpc),
     re_path("poll/.+", poll),
     re_path("res/.+", res),
+    path("polls/", main),
     path("", main)
 ]
