@@ -278,6 +278,46 @@ export function get_poll_answers(element, yaml) {
   };
 }
 
+function get_answer_val(answers, key) {
+  for(const o of answers)
+    if(o.key == key)
+      return o.value;
+  return null;
+}
+
+export function refill_poll_answers(element, yaml, answers) {
+  for(const question_obj of yaml.poll) {
+    const question_var = Object.keys(question_obj)[0];
+    const val = get_answer_val(answers, question_var);
+    console.log(val);
+    if(val == null)
+      continue;
+    const question = question_obj[question_var];
+    switch(question.type) {
+      case "CHOICE": {
+        const blk = getQuestionBlock(element, question_var);
+        if(!blk)
+          continue;
+        const choice = blk.querySelector("div > input[choice=\"" + val + "\"]");
+        if(!choice)
+          continue;
+        choice.checked = true;
+        break;
+      }
+      case "SHORT": {
+        const blk = getQuestionBlock(element, question_var);
+        if(!blk)
+          continue;
+        const input = blk.querySelector("input");
+        if(!input)
+          continue;
+          input.value = val;
+        break;
+      }
+    }
+  }
+}
+
 // try {
 //   const doc = yaml.load(code);
 //   if(doc == null || doc.poll == null)

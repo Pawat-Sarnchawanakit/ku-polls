@@ -220,8 +220,7 @@ class BasicView(View):
         """Display a list of polls."""
         now = timezone.now()
         polls = list(
-            Poll.objects.filter(
-                pub_date__lte=now).order_by("-pub_date")[:100])
+            Poll.objects.filter(pub_date__lte=now).order_by("-pub_date")[:100])
         return render(
             request, "index.html", {
                 "data":
@@ -258,10 +257,26 @@ class BasicView(View):
             return render(request, "error_message.html",
                           {"header": "Failed to load poll"})
         user = check_auth(request)
-        if user is None and poll.requires_auth():
-            return redirect("polls:auth")
-        return FileResponse(open(FRONTEND.joinpath("poll", "index.html"),
-                                 "rb"))
+        prev_answers = []
+        if user is not None:
+            prev_answers = list(
+                Response.objects.filter(submitter=user,
+                                        question=poll).values("key", "value"))
+            print(prev_answers)
+        return render(
+            request, "poll/index.html", {
+                "data":
+                dumps({
+                    "req_auth": user is None and poll.requires_auth(),
+                    "is_creator": user is not None and poll.creator == user,
+                    "can_vote": poll.can_vote(user),
+                    "can_res": poll.can_view_responses(user),
+                    "closed": poll.is_closed(),
+                    "prev_ans": prev_answers,
+                    "id": poll_id,
+                    "yaml": poll.yaml if poll.can_view(user) else None
+                })
+            })
 
     def view_res(self, request: HttpRequest, poll_id: int) -> HttpResponse:
         """Return the html file for results."""
