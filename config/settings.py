@@ -39,7 +39,12 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware'
+]
+
+AUTHENTICATION_BACKENDS = [
+   'django.contrib.auth.backends.ModelBackend',  
 ]
 
 ROOT_URLCONF = 'config.urls'

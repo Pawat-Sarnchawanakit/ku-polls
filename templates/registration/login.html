@@ -5,3 +5,7 @@
 {% block other_msg %}Don't have an account?{% endblock %}
 {% block other_link %}/register{% endblock %}
 {% block other_link_msg %}Register Here{% endblock %}
+{% block fields %}
+<input type="text" placeholder="Username" name="username" autofocus="" autocapitalize="none" autocomplete="username" maxlength="150" required="" id="id_username">
+<input type="password" placeholder="Password" name="password" autocomplete="current-password" required="" id="id_password">
+{% endblock %}

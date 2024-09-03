@@ -13,18 +13,30 @@
                 <h1>{% block blk_title %}{% endblock %}</h1>
                 <div style="display: flex;flex-direction: column;">
                     {% csrf_token %}
-                    {{ form.as_p }}
+                    {% block fields %}
+                    {% endblock %}
+                    {% if form.errors %}
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                                <p style="color: #F00;margin: auto;text-align: center">{{ error|escape }}</p>
+                            {% endfor %}
+                        {% endfor %}
+                        {% for error in form.non_field_errors %}
+                            <p style="color: #F00;margin: auto;text-align: center">{{ error|escape }}</p>
+                        {% endfor %}
+                    {% endif %}
+                    <p class="noacc" >{% block other_msg %}{% endblock %} <a href="{% block other_link %}{% endblock %}">{% block other_link_msg %}{% endblock %}</a></p>
                 </div>
-                <p class="noacc" >{% block other_msg %}{% endblock %} <a href="{% block other_link %}{% endblock %}">{% block other_link_msg %}{% endblock %}</a></p>
+                
                 <button type="submit">{% block btn_text %}{% endblock %}</button>
             </form>
         </div>
     </div>
   </body>
   <style>
-    div li, div span, div p {
+    /* div li, div span, div p {
         color: #FFF;
-    }
+    } */
     a {
         color: #50F;
         cursor: pointer;
@@ -66,7 +78,7 @@
         border-radius: 10px;  
         margin: auto;
         margin: top;
-        width: min(80%, 500px);
+        width: min(80%, 400px);
         background-color: #2E2E2E;
     }
     h1 {

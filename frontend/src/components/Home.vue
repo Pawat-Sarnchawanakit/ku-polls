@@ -1,8 +1,8 @@
 <template>
     <div class="holder">
-        <h1 class="title">KU Polls</h1>
         <div class="header">
             <a href="/create/"><button class="header-btn">Create a poll</button></a>
+            <button v-if="authenticated" @click="log_out" class="header-btn">Logout</button>
         </div>
         <div class="grid">
             <a v-for="itm in list" :href="'/poll/' + itm.id">
@@ -55,14 +55,6 @@
     display: block;
     width: 200px;
 }
-.title {
-    font-size: 64pt;
-}
-h1, h2, p {
-    margin: auto;
-    text-align: center;
-    color: #FFF;
-}
 .header-btn {
     color: #FFF;
     font-size: 16pt;
@@ -89,5 +81,25 @@ h1, h2, p {
 <script setup>
     import { ref } from 'vue';
     const list = ref([]);
-    list.value = JSON.parse(document.getElementById("server-data").innerText)
+    const authenticated = ref(document.getElementById('authenticated') != null);
+    list.value = JSON.parse(document.getElementById("server-data").innerText);
+
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+
+    function log_out() {
+        const formData = new FormData();
+        formData.append("csrfmiddlewaretoken", getCookie("csrftoken"));
+        fetch(window.location.protocol + "//" + window.location.host + "/accounts/logout/", {
+            method: 'POST',
+            redirect: 'follow',
+            body: formData
+        }).then(response => {
+            if (response.redirected)
+                window.location.href = response.url;
+        });
+    }
 </script>

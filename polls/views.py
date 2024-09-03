@@ -1,5 +1,6 @@
 """Contain views."""
 # pylint: disable=broad-exception-caught
+import logging
 from datetime import timedelta, datetime
 from pathlib import Path
 from json import loads, dumps
@@ -14,10 +15,41 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import get_user
 from django.contrib.auth.models import User
 from django.urls import reverse_lazy
+from django.contrib.auth.signals import user_logged_in, user_logged_out, user_login_failed
+from django.dispatch import receiver
 from .models import Poll, Response, get_or_none
+
+logger = logging.getLogger("polls")
 
 FRONTEND = Path(__file__).parents[1].joinpath("frontend", "dist")
 
+def get_client_ip(request):
+    """Get the visitor’s IP address using request headers."""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
+
+# Logging
+@receiver(user_logged_in)
+def on_user_login(request, user, **__):
+    """Log when user logs in."""
+    ip = get_client_ip(request)
+    logger.debug('User `%s` logged in via ip: %s', user, ip)
+
+@receiver(user_logged_out)
+def on_user_logout(request, user, **__):
+    """Log when user logs out."""
+    ip = get_client_ip(request)
+    logger.debug('User `%s` logged out via ip: %s', user, ip)
+
+@receiver(user_login_failed)
+def on_user_login_failed(credentials, **__):
+    """Log when user failed to login."""
+    logger.warning('Login failed for: %s', credentials)
 
 def check_auth(request: HttpRequest) -> User | None:
     """Check whether the user is authenticated.
@@ -49,35 +81,6 @@ class RPCHandler(View):
             return HttpResponse("Function not found", status=404)
         del json_data["f"]
         return getattr(self, method)(request, **json_data)
-
-    def fn_login(self, _: HttpRequest, u: str, p: str) -> HttpResponse:
-        """Log the user in."""
-        if not isinstance(u, str):
-            return HttpResponse("Username must be a string", status=400)
-        if not isinstance(p, str):
-            return HttpResponse("Password must be a string", status=400)
-        user = get_or_none(User, username=u)
-        if user is None or not user.check_password(p):
-            return HttpResponse("Invalid credentials.", status=400)
-        session = user.create_session()
-        response = HttpResponse("ok")
-        response.set_cookie("tk", session.hex())
-        return response
-
-    def fn_regis(self, _: HttpRequest, u: str, p: str) -> HttpResponse:
-        """Register the user."""
-        if not isinstance(u, str):
-            return HttpResponse("Username must be a string", status=400)
-        if not isinstance(p, str):
-            return HttpResponse("Password must be a string", status=400)
-        user = get_or_none(User, username=u)
-        if user is not None:
-            return HttpResponse("User already exists.", status=400)
-        user: User = User.register(username=u, password=p)
-        session = user.create_session()
-        response = HttpResponse("ok")
-        response.set_cookie("tk", session.hex())
-        return response
 
     def fn_create(self,
                   request: HttpRequest,
@@ -173,7 +176,7 @@ class RPCHandler(View):
         if not poll.can_vote(user):
             return HttpResponse("Forbidden", status=403)
         if user is not None:
-            Response.objects.filter(submitter=user).delete()
+            Response.objects.filter(question=poll, submitter=user).delete()
         ress = []
         for k, v in (r or {}).items():
             ress.append(Response(question=poll, key=k, value=v,
@@ -261,7 +264,6 @@ class BasicView(View):
             prev_answers = list(
                 Response.objects.filter(submitter=user,
                                         question=poll).values("key", "value"))
-            print(prev_answers)
         return render(
             request, "poll/index.html", {
                 "data":
