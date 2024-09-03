@@ -7,9 +7,14 @@ from django.shortcuts import redirect, render
 from django.http import HttpResponse, HttpRequest, FileResponse
 from django.utils import timezone
 from django.views import View
+from django.views.generic import CreateView
 from django.db.models import Q
 from django.contrib import messages
-from .models import Poll, Response, Session, User, get_or_none
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import get_user
+from django.contrib.auth.models import User
+from django.urls import reverse_lazy
+from .models import Poll, Response, get_or_none
 
 FRONTEND = Path(__file__).parents[1].joinpath("frontend", "dist")
 
@@ -23,16 +28,10 @@ def check_auth(request: HttpRequest) -> User | None:
     Returns:
         User | None: The user if authenticated or None.
     """
-    session_id = request.COOKIES.get("tk")
-    if session_id is None:
+    user = get_user(request)
+    if user.is_anonymous:
         return None
-    session = get_or_none(Session, session=bytes.fromhex(session_id))
-    if session is None:
-        return None
-    if session.accessed <= timezone.now() - timedelta(days=2):
-        session.accessed = timezone.now()
-        session.save()
-    return session.user
+    return user
 
 
 class RPCHandler(View):
@@ -238,7 +237,7 @@ class BasicView(View):
         """Display the poll creator view."""
         user = check_auth(request)
         if user is None:
-            return redirect("polls:auth")
+            return redirect("login")
         if poll_id is not None:
             poll = get_or_none(Poll, id=poll_id)
             if poll is None:
@@ -303,3 +302,8 @@ class BasicView(View):
                     "id": poll_id
                 })
             })
+
+class RegisterView(CreateView):
+    form_class = UserCreationForm
+    success_url = reverse_lazy("login")
+    template_name = "registration/register.html"

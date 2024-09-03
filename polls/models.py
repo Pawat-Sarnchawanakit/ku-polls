@@ -6,6 +6,7 @@ from datetime import timedelta
 from django.db import models
 from django.utils import timezone
 from django.db.models import Count
+from django.contrib.auth.models import User
 
 
 def get_or_none(model_class, **kwargs):
@@ -57,66 +58,6 @@ class ResType(BitEnum):
 
     CREATOR = 1
     AUTH = 1 << 1
-
-
-class User(models.Model):
-    """Contain User data.
-
-    Such as password hash, salt,
-    username, and account creation date.
-    """
-
-    username = models.CharField(max_length=50,
-                                unique=True,
-                                editable=False,
-                                primary_key=True)
-    # Creation date.
-    created = models.DateTimeField(default=timezone.now)
-    password_hash = models.BinaryField(max_length=64)
-    password_salt = models.BinaryField(max_length=64)
-
-    def check_password(self, password: str) -> bool:
-        """Check whether the given password is correct for this user.
-
-        Args:
-            password (str): The password to check.
-
-        Returns:
-            bool: Whether the password is correct
-        """
-        return hmac.compare_digest(
-            hmac.digest(self.password_salt, bytes(password, "utf-8"),
-                        "blake2b"), self.password_hash)
-
-    def create_session(self) -> str:
-        """Create a session for a user.
-
-        Returns:
-            string: The session key created.
-        """
-        # Remove sessions older than 30 days.
-        Session.objects.filter(user=self,
-                               accessed__lte=timezone.now() -
-                               timedelta(days=30)).delete()
-        # Create session
-        session_key = secrets.token_bytes(64)
-        session = Session(user=self, session=session_key)
-        session.save()
-        return session_key
-
-    @classmethod
-    def register(cls, username: str, password: str):
-        """Register a user.
-
-        Args:
-            username (str): The user's name.
-            password (str): The user's password.
-        """
-        salt = secrets.token_bytes(64)
-        pw_hash = hmac.digest(salt, bytes(password, "UTF-8"), "blake2b")
-        return cls.objects.create(username=username,
-                                  password_hash=pw_hash,
-                                  password_salt=salt)
 
 
 class Poll(models.Model):
@@ -271,17 +212,3 @@ class Response(models.Model):
     key = models.CharField(max_length=200)
     # What is the answer to that question?
     value = models.CharField(max_length=200)
-
-
-class Session(models.Model):
-    """Used to keep users logged in."""
-
-    # The user the session belongs to.
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    # The time this session was last accessed.
-    accessed = models.DateTimeField(auto_now_add=True)
-    # The session id, will be kept as a COOKIE on the user's browser.
-    session = models.BinaryField(max_length=64,
-                                 unique=True,
-                                 editable=False,
-                                 primary_key=True)

@@ -31,7 +31,9 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS',
 # Application definition
 
 INSTALLED_APPS = [
+    'django.contrib.auth', 'django.contrib.sessions',
     'django.contrib.staticfiles', 'django.contrib.messages',
+    'django.contrib.contenttypes',
     'polls.apps.ApiConfig'
 ]
 
@@ -48,7 +50,10 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors':
-            ["django.contrib.messages.context_processors.messages"],
+            [
+                'django.contrib.auth.context_processors.auth',
+                "django.contrib.messages.context_processors.messages"
+            ],
         },
     },
 ]
@@ -88,3 +93,6 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGIN_REDIRECT_URL = 'polls:polls'
+LOGOUT_REDIRECT_URL = 'polls:polls'
