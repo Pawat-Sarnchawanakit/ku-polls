@@ -1,8 +1,8 @@
 <template>
     <div class="holder">
-        <h1 class="title">KU Polls</h1>
         <div class="header">
             <a href="/create/"><button class="header-btn">Create a poll</button></a>
+            <button v-if="authenticated" @click="log_out" class="header-btn">Logout</button>
         </div>
         <div class="grid">
             <a v-for="itm in list" :href="'/poll/' + itm.id">
@@ -55,14 +55,6 @@
     display: block;
     width: 200px;
 }
-.title {
-    font-size: 64pt;
-}
-h1, h2, p {
-    margin: auto;
-    text-align: center;
-    color: #FFF;
-}
 .header-btn {
     color: #FFF;
     font-size: 16pt;
@@ -87,7 +79,9 @@ h1, h2, p {
 </style>
 
 <script setup>
+    import { log_out } from '/src/common.js';
     import { ref } from 'vue';
     const list = ref([]);
-    list.value = JSON.parse(document.getElementById("server-data").innerText)
+    const authenticated = ref(document.getElementById('authenticated') != null);
+    list.value = JSON.parse(document.getElementById("server-data").innerText);
 </script>

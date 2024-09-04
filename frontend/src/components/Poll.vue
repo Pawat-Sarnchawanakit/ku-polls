@@ -4,10 +4,12 @@
             <a href="/"><input class="left-btn" :style='{ "background-image": `url("${home_img}")` }' type="button"/></a>
             <input v-if="can_view_res || is_creator" @click="view_response" class="left-btn" :style='{ "background-image": `url("${bars_img}")` }' type="button"/>
             <input v-if="is_creator" @click="edit_poll" class="left-btn" :style='{ "background-image": `url("${edit_img}")` }' type="button"/>
+            <input v-if="!authenticated" @click="login" class="left-btn" :style='{ "background-image": `url("${login_img}")` }' type="button"/>
+            <input v-if="authenticated" @click="log_out" class="left-btn" :style='{ "background-image": `url("${logout_img}")` }' type="button"/>
         </div>
         <dialog ref="dlg" style="background-color: #2B2B2B;border: none; border-radius: 10px;"><h1 :style="{ 'color': dlg_col }"> {{ dlg_text }}</h1><br/><p style="color: #FFF;margin: auto;text-align: center">Press ESC to close.</p></dialog>
         <div ref="poll"></div>
-        <div v-if="loaded" style="display: flex;justify-content: center;margin-bottom: 10px"><button @click="submit">Submit</button></div>
+        <div v-if="loaded" style="display: flex;justify-content: center;margin-bottom: 10px"><button @click="submit">{{ submit_text }}</button></div>
     </div>
 </template>
 
@@ -48,12 +50,15 @@ button:active {
 </style>
 
 <script setup>
+import { login, log_out } from '/src/common.js';
 import { ref, onMounted } from 'vue';
-import { validate_yaml, display_poll, get_poll_answers, AllowType } from "/src/poll_loader.js"
+import { validate_yaml, display_poll, get_poll_answers, refill_poll_answers, AllowType } from "/src/poll_loader.js"
 import home_img from './../assets/home.svg?url';
 import edit_img from './../assets/edit.svg?url';
 import bars_img from './../assets/bars.svg?url';
-var mounted = false;
+import login_img from './../assets/login.svg?url';
+import logout_img from './../assets/logout.svg?url';
+const submit_text = ref('Submit');
 const can_view_res = ref(false);
 const is_creator = ref(false);
 const dlg_col = ref("#FFF")
@@ -61,23 +66,32 @@ const dlg_text = ref("Please answer all questions.");
 const dlg = ref(false);
 const loaded = ref(false);
 const poll = ref(null);
-let submitted = false;
+const data = JSON.parse(document.getElementById("server-data").innerText);
+const authenticated = ref(data.auth);
+let cantsubmit = false;
 const poll_id = document.location.pathname.split('/').filter((a) => a.length != 0)[1];
 let poll_data;
 
+if(data.is_creator)
+    is_creator.value = true;
+if(data.can_res)
+    can_view_res.value = true;
+
+onMounted(() => onYamlLoaded(data));
+
 function view_response() {
-    document.location.href = window.location.protocol + "//" + window.location.host + "/res/" + poll_id;
+    document.location.href = window.location.protocol + "//" + window.location.host + "/res/" + data.id;
 }
 
 function edit_poll() {
-    document.location.href = window.location.protocol + "//" + window.location.host + "/create/" + poll_id;
+    document.location.href = window.location.protocol + "//" + window.location.host + "/create/" + data.id;
 }
 
-async function onYamlLoaded(body) {
+function onYamlLoaded(body) {
     if(body.yaml != null) {
         const result = validate_yaml(body.yaml);
         if(!result.ok) {
-            submitted = true;
+            cantsubmit = true;
             dlg_col.value = "#F00";
             dlg_text.value = result.message;
             dlg.value.showModal();
@@ -86,42 +100,25 @@ async function onYamlLoaded(body) {
         if(result.res == 0)
             can_view_res.value = true;
         poll_data = result.yaml;
-        submitted = true;
+        cantsubmit = true;
         if(poll_data.allow == 0) {
-            submitted = false;
-        } else {
-            if((poll_data.allow & AllowType.CLIENT) != 0) {
-                if(localStorage.getItem("answered_" + poll_id) == 'y') {
-                    dlg_col.value = "#FFF";
-                    dlg_text.value = "You already answered this poll.";
-                    dlg.value.showModal();
-                    submitted = true;
-                } else submitted = false;
-            }
-            // console.log(submitted, poll_data.allow, AllowType.AUTH, (poll_data.allow & AllowType.AUTH) != 0);
-            if(submitted && (poll_data.allow & AllowType.AUTH) != 0) {
-                submitted = true;
-                const res = await fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        f: "aa",
-                        n: poll_id,
-                    })
-                });
-                const body = await res.text()
-                if(body != 'y')
-                    submitted = false;
-                else {
-                    dlg_col.value = "#FFF";
-                    dlg_text.value = "You already answered this poll.";
-                    dlg.value.showModal();
-                }
-            }
-        }
+            cantsubmit = false;
+        } else if((poll_data.allow & AllowType.CLIENT) != 0) {
+            if(localStorage.getItem("answered_" + poll_id) == 'y') {
+                dlg_col.value = "#FFF";
+                dlg_text.value = "You already answered this poll.";
+                dlg.value.showModal();
+                cantsubmit = true;
+            } else cantsubmit = false;
+        } else cantsubmit = false;
         display_poll(poll.value, poll_data);
+        if(!cantsubmit && body.prev_ans.length > 0) {
+            refill_poll_answers(poll.value, result.yaml, body.prev_ans);
+            dlg_col.value = "#FFF";
+            dlg_text.value = "You already answered this poll.";
+            dlg.value.showModal();
+            submit_text.value = "Change answers";
+        }
     } else {
         const msg = document.createElement("h1");
         msg.innerText = "You don't have permission to view this poll.";
@@ -133,38 +130,38 @@ async function onYamlLoaded(body) {
     
     
     if(body.closed) {
-        submitted = true;
+        cantsubmit = true;
         dlg_col.value = "#F00";
         dlg_text.value = "This poll is already closed.";
         dlg.value.showModal();
     } else if(!body.can_vote) {
-        submitted = true;
+        cantsubmit = true;
         dlg_col.value = "#F00";
         dlg_text.value = "You do not have permission to vote in this poll.";
         dlg.value.showModal();
     }
-    if(!submitted)
+    if(!cantsubmit)
         loaded.value = true;
 }
-onMounted(() => mounted = true);
-fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-        f: "get",
-        n: poll_id
-    })
-}).then(res => res.json().then((body) => {
-    if(body.is_creator)
-        is_creator.value = true;
-    if(body.can_res)
-        can_view_res.value = true;
-    if(mounted)
-        return onYamlLoaded(body)
-    return onMounted(() => onYamlLoaded(body.yaml));
-}));
+
+// fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
+//     method: 'POST',
+//     headers: {
+//         'Content-Type': 'application/json'
+//     },
+//     body: JSON.stringify({
+//         f: "get",
+//         n: poll_id
+//     })
+// }).then(res => res.json().then((body) => {
+//     if(body.is_creator)
+//         is_creator.value = true;
+//     if(body.can_res)
+//         can_view_res.value = true;
+//     if(mounted)
+//         return onYamlLoaded(body)
+//     return onMounted(() => onYamlLoaded(body.yaml));
+// }));
 // onMounted(() => {
 // onYamlLoaded(`
 // allow: CLIENT
@@ -188,15 +185,15 @@ fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
 // `);
 // });
 function submit() {
-    if(submitted)
+    if(cantsubmit)
         return;
-    submitted = true;
+    cantsubmit = true;
     const answers = get_poll_answers(poll.value, poll_data);
     if(!answers.ok) {
         dlg_col.value = "#F00";
         dlg_text.value = answers.message;
         dlg.value.showModal();
-        submitted = false;
+        cantsubmit = false;
         return;
     }
     dlg_col.value = "#FFF";
@@ -220,18 +217,19 @@ function submit() {
         dlg_text.value = is_ok ? "Your response has been recorded." : body;
         dlg.value.showModal();
         if(!is_ok) {
-            submitted = false;
+            cantsubmit = false;
             return;
         }
-        if(submitted)
+        if(cantsubmit)
             loaded.value = false;
         if(poll_data.allow != 0 && (poll_data.allow & AllowType.CLIENT) != 0)
             localStorage.setItem("answered_" + poll_id, 'y');
+        setTimeout(() => window.location.reload(true), 500);
     })).catch(() => {
         dlg_col.value = "#F00";
         dlg_text.value = "Failed to submit response.";
         dlg.value.showModal();
-        submitted = false;
+        cantsubmit = false;
     });
 }
 </script>

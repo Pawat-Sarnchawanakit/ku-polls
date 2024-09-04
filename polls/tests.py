@@ -3,14 +3,18 @@ from json import dumps, loads
 from datetime import timedelta
 from django.test import TestCase
 from django.utils import timezone
-from polls.models import User, Poll
+from django.contrib.auth.models import User
+from polls.models import Poll
 
 
-def create_test_user() -> User:
+def get_test_user() -> User:
     """Create a test user."""
-    return User.objects.create(username="user",
-                               password_hash=b"",
-                               password_salt=b"")
+    user = User.objects.all().first()
+    if user is not None:
+        return user
+    user = User.objects.create(username="user", password="1234")
+    user.set_password("1234")
+    return user
 
 
 class PollTest(TestCase):
@@ -20,7 +24,7 @@ class PollTest(TestCase):
         """Check `is_published` for future polls."""
         pub_date = timezone.now() + timedelta(days=5)
         poll = Poll.objects.create(name="Test Poll",
-                                   creator=create_test_user(),
+                                   creator=get_test_user(),
                                    allow=0,
                                    res=0,
                                    image="",
@@ -31,7 +35,7 @@ class PollTest(TestCase):
     def test_is_published_now(self):
         """Check `is_published` for current polls."""
         poll = Poll.objects.create(name="Test Poll",
-                                   creator=create_test_user(),
+                                   creator=get_test_user(),
                                    allow=0,
                                    res=0,
                                    image="",
@@ -42,7 +46,7 @@ class PollTest(TestCase):
         """Check `is_published` for past polls."""
         pub_date = timezone.now() - timedelta(days=5)
         poll = Poll.objects.create(name="Test Poll",
-                                   creator=create_test_user(),
+                                   creator=get_test_user(),
                                    allow=0,
                                    res=0,
                                    image="",
@@ -54,7 +58,7 @@ class PollTest(TestCase):
         """Check `can_vote` for future polls."""
         pub_date = timezone.now() + timedelta(days=5)
         poll = Poll.objects.create(name="Test Poll",
-                                   creator=create_test_user(),
+                                   creator=get_test_user(),
                                    allow=0,
                                    res=0,
                                    image="",
@@ -66,7 +70,7 @@ class PollTest(TestCase):
         """Check `can_vote` for current polls."""
         pub_date = timezone.now()
         poll = Poll.objects.create(name="Test Poll",
-                                   creator=create_test_user(),
+                                   creator=get_test_user(),
                                    allow=0,
                                    res=0,
                                    image="",
@@ -78,7 +82,7 @@ class PollTest(TestCase):
         """Check `can_vote` for closed polls."""
         pub_date = timezone.now() - timedelta(days=5)
         poll = Poll.objects.create(name="Test Poll",
-                                   creator=create_test_user(),
+                                   creator=get_test_user(),
                                    allow=0,
                                    res=0,
                                    image="",
@@ -92,7 +96,7 @@ class APITest(TestCase):
     """Implement tests for gyatt."""
 
     # to store session cookie
-    session = None
+    cookies = None
 
     @classmethod
     def _rollback_atomics(cls, atomics):
@@ -102,23 +106,27 @@ class APITest(TestCase):
         """
         return
 
-    def test_b_create_account(self):
-        """Create an account."""
-        response = self.client.post("/gyatt",
-                                    data=dumps({
-                                        "f": "regis",
-                                        "u": "User",
-                                        "p": "1234"
-                                    }),
-                                    content_type='application/json')
-        self.assertIsNotNone(response.cookies.get("tk"),
-                             "`tk` cookie should be set.")
-        self.assertIsNotNone(
-            User.objects.filter(username="User").first,
-            "User should be created.")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, b'ok')
-        self.__class__.session = response.cookies
+    def test_a_create_account(self):
+        """Create user."""
+        response = self.client.post("/register",
+                                    data={
+                                        "username": "user",
+                                        "password1": "1234",
+                                        "password2": "1234"
+                                    })
+        with open("test.html", "wb") as f:
+            f.write(response.content)
+        self.assertEqual(response.status_code, 302)
+
+    def test_b_login_account(self):
+        """Login as user."""
+        response = self.client.post("/accounts/login/",
+                                    data={
+                                        "username": "user",
+                                        "password": "1234"
+                                    })
+        self.__class__.cookies = response.cookies
+        self.assertEqual(response.status_code, 302)
 
     def test_c_create_poll_no_auth(self):
         """Attempt to create a poll without authentication."""
@@ -137,7 +145,7 @@ class APITest(TestCase):
 
     def test_d_create_poll(self):
         """Create a poll."""
-        self.client.cookies = self.__class__.session
+        self.client.cookies = self.__class__.cookies
         response = self.client.post("/gyatt",
                                     data=dumps({
                                         "f": "create",
@@ -156,7 +164,7 @@ class APITest(TestCase):
 
     def test_e_get_poll(self):
         """Get a poll."""
-        self.client.cookies = self.__class__.session
+        self.client.cookies = self.__class__.cookies
         response = self.client.post("/gyatt",
                                     data=dumps({
                                         "f": "get",
@@ -169,7 +177,7 @@ class APITest(TestCase):
 
     def test_f_not_already_answered(self):
         """Check if the poll already is answered, should be False."""
-        self.client.cookies = self.__class__.session
+        self.client.cookies = self.__class__.cookies
         response = self.client.post("/gyatt",
                                     data=dumps({
                                         "f": "aa",
@@ -181,7 +189,7 @@ class APITest(TestCase):
 
     def test_f_submit(self):
         """Submit the poll response."""
-        self.client.cookies = self.__class__.session
+        self.client.cookies = self.__class__.cookies
         response = self.client.post("/gyatt",
                                     data=dumps({
                                         "f": "submit",
@@ -196,7 +204,7 @@ class APITest(TestCase):
 
     def test_g_resubmit(self):
         """Resubmit the poll response."""
-        self.client.cookies = self.__class__.session
+        self.client.cookies = self.__class__.cookies
         response = self.client.post("/gyatt",
                                     data=dumps({
                                         "f": "submit",
@@ -210,8 +218,8 @@ class APITest(TestCase):
         self.assertEqual(response.content, b"ok")
 
     def test_h_res(self):
-        """Submit the poll response."""
-        self.client.cookies = self.__class__.session
+        """View the poll response."""
+        self.client.cookies = self.__class__.cookies
         poll = Poll.objects.get(id=1)
         data = poll.get_responses()
         self.assertIsNone(data.get("test_key"))
@@ -221,7 +229,7 @@ class APITest(TestCase):
 
     def test_i_yes_already_answered(self):
         """Check if the poll already is answered, should be False."""
-        self.client.cookies = self.__class__.session
+        self.client.cookies = self.__class__.cookies
         response = self.client.post("/gyatt",
                                     data=dumps({
                                         "f": "aa",

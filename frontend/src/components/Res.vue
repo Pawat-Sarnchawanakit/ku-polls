@@ -4,6 +4,8 @@
             <a href="/"><input class="left-btn" :style='{ "background-image": `url("${home_img}")` }' type="button"/></a>
             <input @click="view_poll" v-if="data.can_view" class="left-btn" :style='{ "background-image": `url("${poll_img}")` }' type="button"/>
             <input @click="edit_poll" v-if="data.can_edit" class="left-btn" :style='{ "background-image": `url("${edit_img}")` }' type="button"/>
+            <input @click="login" v-if="!authenticated" class="left-btn" :style='{ "background-image": `url("${login_img}")` }' type="button"/>
+            <input v-if="authenticated" @click="log_out" class="left-btn" :style='{ "background-image": `url("${logout_img}")` }' type="button"/>
         </div>
         <dialog ref="dlg" style="background-color: #2B2B2B;border: none; border-radius: 10px;"><h1 :style="{ 'color': dlg_col }"> {{ dlg_text }}</h1><br/><p style="color: #FFF;margin: auto;text-align: center">Press ESC to close.</p></dialog>
         <div class="qb" v-for="(values, name) in responses">
@@ -67,16 +69,20 @@ dialog::backdrop {
 </style>
 
 <script setup>
+import { login, log_out } from '/src/common.js';
 import { onMounted, ref } from 'vue';
 import { validate_yaml } from "/src/poll_loader.js"
 import home_img from './../assets/home.svg?url';
 import edit_img from './../assets/edit.svg?url';
 import poll_img from './../assets/poll.svg?url';
+import login_img from './../assets/login.svg?url';
+import logout_img from './../assets/logout.svg?url';
 const dlg_col = ref("#FFF")
 const dlg_text = ref("Sample text");
 const dlg = ref(null);
 const responses = ref({});
 const data = JSON.parse(document.getElementById("server-data").innerText)
+const authenticated = ref(data.auth);
 const poll_id = data.id;
 var mounted = false;
 onMounted(() => mounted = true);

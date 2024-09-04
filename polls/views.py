@@ -1,17 +1,58 @@
 """Contain views."""
 # pylint: disable=broad-exception-caught
-from datetime import timedelta, datetime
+import logging
+from datetime import datetime
 from pathlib import Path
 from json import loads, dumps
 from django.shortcuts import redirect, render
 from django.http import HttpResponse, HttpRequest, FileResponse
 from django.utils import timezone
 from django.views import View
-from django.db.models import Q
+from django.views.generic import CreateView
 from django.contrib import messages
-from .models import Poll, Response, Session, User, get_or_none
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import get_user
+from django.contrib.auth.models import User
+from django.urls import reverse_lazy
+from django.contrib.auth.signals import user_logged_in, user_logged_out, user_login_failed
+from django.dispatch import receiver
+from .models import Poll, Response, get_or_none
+
+logger = logging.getLogger("polls")
 
 FRONTEND = Path(__file__).parents[1].joinpath("frontend", "dist")
+
+
+def get_client_ip(request):
+    """Get the visitor’s IP address using request headers."""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
+
+# Logging
+@receiver(user_logged_in)
+def on_user_login(request, user, **__):
+    """Log when user logs in."""
+    ip = get_client_ip(request)
+    logger.info('User `%s` logged in via ip: %s', user, ip)
+
+
+@receiver(user_logged_out)
+def on_user_logout(request, user, **__):
+    """Log when user logs out."""
+    ip = get_client_ip(request)
+    logger.info('User `%s` logged out via ip: %s', user, ip)
+
+
+@receiver(user_login_failed)
+def on_user_login_failed(request, credentials, **__):
+    """Log when user failed to login."""
+    ip = get_client_ip(request)
+    logger.warning('Login failed for: %s via ip: %s', credentials, ip)
 
 
 def check_auth(request: HttpRequest) -> User | None:
@@ -23,16 +64,10 @@ def check_auth(request: HttpRequest) -> User | None:
     Returns:
         User | None: The user if authenticated or None.
     """
-    session_id = request.COOKIES.get("tk")
-    if session_id is None:
+    user = get_user(request)
+    if user.is_anonymous:
         return None
-    session = get_or_none(Session, session=bytes.fromhex(session_id))
-    if session is None:
-        return None
-    if session.accessed <= timezone.now() - timedelta(days=2):
-        session.accessed = timezone.now()
-        session.save()
-    return session.user
+    return user
 
 
 class RPCHandler(View):
@@ -50,35 +85,6 @@ class RPCHandler(View):
             return HttpResponse("Function not found", status=404)
         del json_data["f"]
         return getattr(self, method)(request, **json_data)
-
-    def fn_login(self, _: HttpRequest, u: str, p: str) -> HttpResponse:
-        """Log the user in."""
-        if not isinstance(u, str):
-            return HttpResponse("Username must be a string", status=400)
-        if not isinstance(p, str):
-            return HttpResponse("Password must be a string", status=400)
-        user = get_or_none(User, username=u)
-        if user is None or not user.check_password(p):
-            return HttpResponse("Invalid credentials.", status=400)
-        session = user.create_session()
-        response = HttpResponse("ok")
-        response.set_cookie("tk", session.hex())
-        return response
-
-    def fn_regis(self, _: HttpRequest, u: str, p: str) -> HttpResponse:
-        """Register the user."""
-        if not isinstance(u, str):
-            return HttpResponse("Username must be a string", status=400)
-        if not isinstance(p, str):
-            return HttpResponse("Password must be a string", status=400)
-        user = get_or_none(User, username=u)
-        if user is not None:
-            return HttpResponse("User already exists.", status=400)
-        user: User = User.register(username=u, password=p)
-        session = user.create_session()
-        response = HttpResponse("ok")
-        response.set_cookie("tk", session.hex())
-        return response
 
     def fn_create(self,
                   request: HttpRequest,
@@ -174,7 +180,11 @@ class RPCHandler(View):
         if not poll.can_vote(user):
             return HttpResponse("Forbidden", status=403)
         if user is not None:
-            Response.objects.filter(submitter=user).delete()
+            Response.objects.filter(question=poll, submitter=user).delete()
+        ip = get_client_ip(request)
+        logger.info(
+            "User `%s` submitted a response for poll id `%s` via ip `%s`: %s",
+            user.username if user is not None else "Anonymous", n, ip, str(r))
         ress = []
         for k, v in (r or {}).items():
             ress.append(Response(question=poll, key=k, value=v,
@@ -220,8 +230,7 @@ class BasicView(View):
         """Display a list of polls."""
         now = timezone.now()
         polls = list(
-            Poll.objects.filter(
-                pub_date__lte=now).order_by("-pub_date")[:100])
+            Poll.objects.filter(pub_date__lte=now).order_by("-pub_date")[:100])
         return render(
             request, "index.html", {
                 "data":
@@ -239,7 +248,7 @@ class BasicView(View):
         """Display the poll creator view."""
         user = check_auth(request)
         if user is None:
-            return redirect("polls:auth")
+            return redirect("login")
         if poll_id is not None:
             poll = get_or_none(Poll, id=poll_id)
             if poll is None:
@@ -258,10 +267,26 @@ class BasicView(View):
             return render(request, "error_message.html",
                           {"header": "Failed to load poll"})
         user = check_auth(request)
-        if user is None and poll.requires_auth():
-            return redirect("polls:auth")
-        return FileResponse(open(FRONTEND.joinpath("poll", "index.html"),
-                                 "rb"))
+        prev_answers = []
+        if user is not None:
+            prev_answers = list(
+                Response.objects.filter(submitter=user,
+                                        question=poll).values("key", "value"))
+        return render(
+            request, "poll/index.html", {
+                "data":
+                dumps({
+                    "auth": user is not None,
+                    "req_auth": user is None and poll.requires_auth(),
+                    "is_creator": user is not None and poll.creator == user,
+                    "can_vote": poll.can_vote(user),
+                    "can_res": poll.can_view_responses(user),
+                    "closed": poll.is_closed(),
+                    "prev_ans": prev_answers,
+                    "id": poll_id,
+                    "yaml": poll.yaml if poll.can_view(user) else None
+                })
+            })
 
     def view_res(self, request: HttpRequest, poll_id: int) -> HttpResponse:
         """Return the html file for results."""
@@ -281,6 +306,7 @@ class BasicView(View):
             request, "res/index.html", {
                 "data":
                 dumps({
+                    "auth": user is not None,
                     "can_view": poll.can_view(user),
                     "can_edit": user is not None and user == poll.creator,
                     "responses": poll.get_responses(),
@@ -288,3 +314,11 @@ class BasicView(View):
                     "id": poll_id
                 })
             })
+
+
+class RegisterView(CreateView):
+    """View for registration/signup."""
+
+    form_class = UserCreationForm
+    success_url = reverse_lazy("login")
+    template_name = "registration/register.html"
