@@ -1,7 +1,6 @@
 """Contain views."""
 # pylint: disable=broad-exception-caught
 import logging
-from datetime import timedelta, datetime
 from pathlib import Path
 from json import loads, dumps
 from django.shortcuts import redirect, render
@@ -9,7 +8,6 @@ from django.http import HttpResponse, HttpRequest, FileResponse
 from django.utils import timezone
 from django.views import View
 from django.views.generic import CreateView
-from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import get_user
@@ -177,6 +175,7 @@ class RPCHandler(View):
             return HttpResponse("Forbidden", status=403)
         if user is not None:
             Response.objects.filter(question=poll, submitter=user).delete()
+        logger.info("User `%s` submitted a response for poll id `%s`: %s", user.username if user is not None else "Anonymous", n, str(r))
         ress = []
         for k, v in (r or {}).items():
             ress.append(Response(question=poll, key=k, value=v,
@@ -268,6 +267,7 @@ class BasicView(View):
             request, "poll/index.html", {
                 "data":
                 dumps({
+                    "auth": user is not None,
                     "req_auth": user is None and poll.requires_auth(),
                     "is_creator": user is not None and poll.creator == user,
                     "can_vote": poll.can_vote(user),
@@ -297,6 +297,7 @@ class BasicView(View):
             request, "res/index.html", {
                 "data":
                 dumps({
+                    "auth": user is not None,
                     "can_view": poll.can_view(user),
                     "can_edit": user is not None and user == poll.creator,
                     "responses": poll.get_responses(),
@@ -306,6 +307,7 @@ class BasicView(View):
             })
 
 class RegisterView(CreateView):
+    """View for registration/signup."""
     form_class = UserCreationForm
     success_url = reverse_lazy("login")
     template_name = "registration/register.html"

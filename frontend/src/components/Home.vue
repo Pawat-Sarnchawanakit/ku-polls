@@ -79,27 +79,9 @@
 </style>
 
 <script setup>
+    import { log_out } from '/src/common.js';
     import { ref } from 'vue';
     const list = ref([]);
     const authenticated = ref(document.getElementById('authenticated') != null);
     list.value = JSON.parse(document.getElementById("server-data").innerText);
-
-    function getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(';').shift();
-    }
-
-    function log_out() {
-        const formData = new FormData();
-        formData.append("csrfmiddlewaretoken", getCookie("csrftoken"));
-        fetch(window.location.protocol + "//" + window.location.host + "/accounts/logout/", {
-            method: 'POST',
-            redirect: 'follow',
-            body: formData
-        }).then(response => {
-            if (response.redirected)
-                window.location.href = response.url;
-        });
-    }
 </script>

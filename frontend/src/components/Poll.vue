@@ -4,6 +4,8 @@
             <a href="/"><input class="left-btn" :style='{ "background-image": `url("${home_img}")` }' type="button"/></a>
             <input v-if="can_view_res || is_creator" @click="view_response" class="left-btn" :style='{ "background-image": `url("${bars_img}")` }' type="button"/>
             <input v-if="is_creator" @click="edit_poll" class="left-btn" :style='{ "background-image": `url("${edit_img}")` }' type="button"/>
+            <input v-if="!authenticated" @click="login" class="left-btn" :style='{ "background-image": `url("${login_img}")` }' type="button"/>
+            <input v-if="authenticated" @click="log_out" class="left-btn" :style='{ "background-image": `url("${logout_img}")` }' type="button"/>
         </div>
         <dialog ref="dlg" style="background-color: #2B2B2B;border: none; border-radius: 10px;"><h1 :style="{ 'color': dlg_col }"> {{ dlg_text }}</h1><br/><p style="color: #FFF;margin: auto;text-align: center">Press ESC to close.</p></dialog>
         <div ref="poll"></div>
@@ -48,12 +50,14 @@ button:active {
 </style>
 
 <script setup>
+import { login, log_out } from '/src/common.js';
 import { ref, onMounted } from 'vue';
 import { validate_yaml, display_poll, get_poll_answers, refill_poll_answers, AllowType } from "/src/poll_loader.js"
 import home_img from './../assets/home.svg?url';
 import edit_img from './../assets/edit.svg?url';
 import bars_img from './../assets/bars.svg?url';
-var mounted = false;
+import login_img from './../assets/login.svg?url';
+import logout_img from './../assets/logout.svg?url';
 const submit_text = ref('Submit');
 const can_view_res = ref(false);
 const is_creator = ref(false);
@@ -62,7 +66,8 @@ const dlg_text = ref("Please answer all questions.");
 const dlg = ref(false);
 const loaded = ref(false);
 const poll = ref(null);
-const data = JSON.parse(document.getElementById("server-data").innerText)
+const data = JSON.parse(document.getElementById("server-data").innerText);
+const authenticated = ref(data.auth);
 let cantsubmit = false;
 const poll_id = document.location.pathname.split('/').filter((a) => a.length != 0)[1];
 let poll_data;
