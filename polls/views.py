@@ -38,20 +38,21 @@ def get_client_ip(request):
 def on_user_login(request, user, **__):
     """Log when user logs in."""
     ip = get_client_ip(request)
-    logger.debug('User `%s` logged in via ip: %s', user, ip)
+    logger.info('User `%s` logged in via ip: %s', user, ip)
 
 
 @receiver(user_logged_out)
 def on_user_logout(request, user, **__):
     """Log when user logs out."""
     ip = get_client_ip(request)
-    logger.debug('User `%s` logged out via ip: %s', user, ip)
+    logger.info('User `%s` logged out via ip: %s', user, ip)
 
 
 @receiver(user_login_failed)
-def on_user_login_failed(credentials, **__):
+def on_user_login_failed(request, credentials, **__):
     """Log when user failed to login."""
-    logger.warning('Login failed for: %s', credentials)
+    ip = get_client_ip(request)
+    logger.warning('Login failed for: %s via ip: %s', credentials, ip)
 
 
 def check_auth(request: HttpRequest) -> User | None:
@@ -180,9 +181,10 @@ class RPCHandler(View):
             return HttpResponse("Forbidden", status=403)
         if user is not None:
             Response.objects.filter(question=poll, submitter=user).delete()
-        logger.info("User `%s` submitted a response for poll id `%s`: %s",
-                    user.username if user is not None else "Anonymous", n,
-                    str(r))
+        ip = get_client_ip(request)
+        logger.info(
+            "User `%s` submitted a response for poll id `%s` via ip `%s`: %s",
+            user.username if user is not None else "Anonymous", n, ip, str(r))
         ress = []
         for k, v in (r or {}).items():
             ress.append(Response(question=poll, key=k, value=v,
