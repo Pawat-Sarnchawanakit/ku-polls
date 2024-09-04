@@ -1,6 +1,7 @@
 """Contain views."""
 # pylint: disable=broad-exception-caught
 import logging
+from datetime import datetime
 from pathlib import Path
 from json import loads, dumps
 from django.shortcuts import redirect, render
@@ -21,6 +22,7 @@ logger = logging.getLogger("polls")
 
 FRONTEND = Path(__file__).parents[1].joinpath("frontend", "dist")
 
+
 def get_client_ip(request):
     """Get the visitor’s IP address using request headers."""
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -38,16 +40,19 @@ def on_user_login(request, user, **__):
     ip = get_client_ip(request)
     logger.debug('User `%s` logged in via ip: %s', user, ip)
 
+
 @receiver(user_logged_out)
 def on_user_logout(request, user, **__):
     """Log when user logs out."""
     ip = get_client_ip(request)
     logger.debug('User `%s` logged out via ip: %s', user, ip)
 
+
 @receiver(user_login_failed)
 def on_user_login_failed(credentials, **__):
     """Log when user failed to login."""
     logger.warning('Login failed for: %s', credentials)
+
 
 def check_auth(request: HttpRequest) -> User | None:
     """Check whether the user is authenticated.
@@ -175,7 +180,9 @@ class RPCHandler(View):
             return HttpResponse("Forbidden", status=403)
         if user is not None:
             Response.objects.filter(question=poll, submitter=user).delete()
-        logger.info("User `%s` submitted a response for poll id `%s`: %s", user.username if user is not None else "Anonymous", n, str(r))
+        logger.info("User `%s` submitted a response for poll id `%s`: %s",
+                    user.username if user is not None else "Anonymous", n,
+                    str(r))
         ress = []
         for k, v in (r or {}).items():
             ress.append(Response(question=poll, key=k, value=v,
@@ -306,8 +313,10 @@ class BasicView(View):
                 })
             })
 
+
 class RegisterView(CreateView):
     """View for registration/signup."""
+
     form_class = UserCreationForm
     success_url = reverse_lazy("login")
     template_name = "registration/register.html"

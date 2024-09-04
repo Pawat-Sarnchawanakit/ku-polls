@@ -108,14 +108,23 @@ class APITest(TestCase):
 
     def test_a_create_account(self):
         """Create user."""
-        response = self.client.post("/register", data={ "username": "user", "password1": "1234", "password2": "1234" })
+        response = self.client.post("/register",
+                                    data={
+                                        "username": "user",
+                                        "password1": "1234",
+                                        "password2": "1234"
+                                    })
         with open("test.html", "wb") as f:
             f.write(response.content)
         self.assertEqual(response.status_code, 302)
 
     def test_b_login_account(self):
         """Login as user."""
-        response = self.client.post("/accounts/login/", data={ "username": "user", "password": "1234" })
+        response = self.client.post("/accounts/login/",
+                                    data={
+                                        "username": "user",
+                                        "password": "1234"
+                                    })
         self.__class__.cookies = response.cookies
         self.assertEqual(response.status_code, 302)
 
