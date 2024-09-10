@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 from decouple import config
+from django.core.management.utils import get_random_secret_key
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -19,17 +20,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
-SECRET_KEY = config("SECRET_KEY", cast=str)
+SECRET_KEY = config("SECRET_KEY", default=get_random_secret_key(), cast=str)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=False, cast=bool)
+DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS',
-                       default=[],
-                       cast=lambda v: [s.strip() for s in v.split(',')])
+                       default=["*"],
+                       cast=lambda v: [s.strip() for s in str(v).split(',')])
 CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS',
-                       default=[],
-                       cast=lambda v: [s.strip() for s in v.split(',')])
+                       default=["http://localhost", "http://127.0.0.1"],
+                       cast=lambda v: [s.strip() for s in str(v).split(',')])
 
 
 # Application definition
