@@ -31,3 +31,8 @@ dist-ssr
 
 # Environment
 .env
+
+# linter
+.ruff_cache
+.mypy_cache
+lint.bat

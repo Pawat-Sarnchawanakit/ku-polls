@@ -1,5 +1,6 @@
 """Contains models."""
 import enum
+from typing import Any
 from django.db import models
 from django.utils import timezone
 from django.db.models import Count
@@ -60,22 +61,25 @@ class ResType(BitEnum):
 class Poll(models.Model):
     """The polls which will be listed in the home page."""
 
-    name = models.CharField(max_length=100, default='Unnamed Poll')
+    name: models.CharField = models.CharField(max_length=100,
+                                              default='Unnamed Poll')
     # Id of who created the poll.
-    creator = models.ForeignKey(User, on_delete=models.CASCADE)
+    creator: models.ForeignKey = models.ForeignKey(User,
+                                                   on_delete=models.CASCADE)
     # Who is allowed to submit responses to the poll,
     # authenticated users only? etc...
-    allow = models.IntegerField(default=0)
+    allow: models.IntegerField = models.IntegerField(default=0)
     # Who is allowed to view the result of the poll.
-    res = models.IntegerField(default=0)
+    res: models.IntegerField = models.IntegerField(default=0)
     # The thumbnail image of the poll.
-    image = models.CharField(max_length=256, default='')
+    image: models.CharField = models.CharField(max_length=256, default='')
     # The actual poll data in yaml.
-    yaml = models.CharField(max_length=4096 * 8)
+    yaml: models.CharField = models.CharField(max_length=4096 * 8)
     # The date the poll is published.
-    pub_date = models.DateTimeField(default=timezone.now)
+    pub_date: models.DateTimeField = models.DateTimeField(default=timezone.now)
     # The date the poll won't accept a  ny more answers.
-    end_date = models.DateTimeField(null=True, default=None)
+    end_date: models.DateTimeField = models.DateTimeField(null=True,
+                                                          default=None)
 
     def get_responses(self) -> dict:
         """Get the responses.
@@ -86,7 +90,7 @@ class Poll(models.Model):
         responses_list = Response.objects.filter(question=self) \
             .values("key", "value") \
             .annotate(count=Count("value"))
-        responses_dict = dict()
+        responses_dict: dict[str, list[dict[str, Any]]] = dict()
         for v in responses_list:
             val = responses_dict.get(v["key"])
             if val is None:
@@ -198,14 +202,15 @@ class Response(models.Model):
     """Reponse of the polls."""
 
     # What poll does this response belong to?
-    question = models.ForeignKey(Poll, on_delete=models.CASCADE)
+    question: models.ForeignKey = models.ForeignKey(Poll,
+                                                    on_delete=models.CASCADE)
     # Who wrote this response?
     # NULL if the one who responded is not authenticated.
-    submitter = models.ForeignKey(User,
-                                  default=None,
-                                  null=True,
-                                  on_delete=models.CASCADE)
+    submitter: models.ForeignKey = models.ForeignKey(User,
+                                                     default=None,
+                                                     null=True,
+                                                     on_delete=models.CASCADE)
     # What `question` does this response answer?
-    key = models.CharField(max_length=200)
+    key: models.CharField = models.CharField(max_length=200)
     # What is the answer to that question?
-    value = models.CharField(max_length=200)
+    value: models.CharField = models.CharField(max_length=200)

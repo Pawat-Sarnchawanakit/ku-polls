@@ -2,10 +2,11 @@
     <div style="background-color: transparent;height: 100%;overflow: auto;">
         <div style="display: flex;flex-direction: row;">
             <a href="/"><input class="left-btn" :style='{ "background-image": `url("${home_img}")` }' type="button"/></a>
-            <input v-if="can_view_res || is_creator" @click="view_response" class="left-btn" :style='{ "background-image": `url("${bars_img}")` }' type="button"/>
-            <input v-if="is_creator" @click="edit_poll" class="left-btn" :style='{ "background-image": `url("${edit_img}")` }' type="button"/>
-            <input v-if="!authenticated" @click="login" class="left-btn" :style='{ "background-image": `url("${login_img}")` }' type="button"/>
-            <input v-if="authenticated" @click="log_out" class="left-btn" :style='{ "background-image": `url("${logout_img}")` }' type="button"/>
+            <input v-if="can_view_res || is_creator" title="View responses" @click="view_response" class="left-btn" :style='{ "background-image": `url("${bars_img}")` }' type="button"/>
+            <input v-if="is_creator" title="Edit poll" @click="edit_poll" class="left-btn" :style='{ "background-image": `url("${edit_img}")` }' type="button"/>
+            <input v-if="allow_delete" title="Delete responses" @click="delete_answers" class="left-btn" :style='{ "background-image": `url("${delete_img}")` }' type="button"/>
+            <input v-if="!authenticated" title="Login" @click="login" class="left-btn" :style='{ "background-image": `url("${login_img}")` }' type="button"/>
+            <input v-if="authenticated" title="Logout" @click="log_out" class="left-btn" :style='{ "background-image": `url("${logout_img}")` }' type="button"/>
         </div>
         <dialog ref="dlg" style="background-color: #2B2B2B;border: none; border-radius: 10px;"><h1 :style="{ 'color': dlg_col }"> {{ dlg_text }}</h1><br/><p style="color: #FFF;margin: auto;text-align: center">Press ESC to close.</p></dialog>
         <div ref="poll"></div>
@@ -56,11 +57,13 @@ import { validate_yaml, display_poll, get_poll_answers, refill_poll_answers, All
 import home_img from './../assets/home.svg?url';
 import edit_img from './../assets/edit.svg?url';
 import bars_img from './../assets/bars.svg?url';
+import delete_img from './../assets/delete.svg?url';
 import login_img from './../assets/login.svg?url';
 import logout_img from './../assets/logout.svg?url';
 const submit_text = ref('Submit');
 const can_view_res = ref(false);
 const is_creator = ref(false);
+const allow_delete = ref(false);
 const dlg_col = ref("#FFF")
 const dlg_text = ref("Please answer all questions.");
 const dlg = ref(false);
@@ -113,6 +116,7 @@ function onYamlLoaded(body) {
         } else cantsubmit = false;
         display_poll(poll.value, poll_data);
         if(!cantsubmit && body.prev_ans.length > 0) {
+            allow_delete.value = true;
             refill_poll_answers(poll.value, result.yaml, body.prev_ans);
             dlg_col.value = "#FFF";
             dlg_text.value = "You already answered this poll.";
@@ -184,6 +188,40 @@ function onYamlLoaded(body) {
 //             - d: "The meaning of life is a subjective concept that varies from person to person, often encompassing themes of purpose, fulfillment, and personal growth."
 // `);
 // });
+
+function delete_answers() {
+    fetch(window.location.protocol + "//" + window.location.host + "/gyatt", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            f: "submit",
+            n: poll_id,
+            r: []
+        })
+    }).then(res => res.text().then((body) => {
+        if(!res.ok && body == "")
+            body = res.statusText;
+        const is_ok = body == "ok";
+        dlg_col.value = is_ok ? "#FFF" : "#F00";
+        dlg_text.value = is_ok ? "Your response has been deleted." : body;
+        dlg.value.showModal();
+        if(!is_ok) {
+            cantsubmit = false;
+            return;
+        }
+        if(cantsubmit)
+            loaded.value = false;
+        setTimeout(() => window.location.reload(true), 500);
+    })).catch(() => {
+        dlg_col.value = "#F00";
+        dlg_text.value = "Failed to delete response.";
+        dlg.value.showModal();
+        cantsubmit = false;
+    });
+}
+
 function submit() {
     if(cantsubmit)
         return;
