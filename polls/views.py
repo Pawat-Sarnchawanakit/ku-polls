@@ -36,21 +36,21 @@ def get_client_ip(request) -> str:
 
 # Logging
 @receiver(user_logged_in)
-def on_user_login(request, user, **__):
+def on_user_login(request, user, **__) -> None:
     """Log when user logs in."""
     ip = get_client_ip(request)
     logger.info('User `%s` logged in via ip: %s', user, ip)
 
 
 @receiver(user_logged_out)
-def on_user_logout(request, user, **__):
+def on_user_logout(request, user, **__) -> None:
     """Log when user logs out."""
     ip = get_client_ip(request)
     logger.info('User `%s` logged out via ip: %s', user, ip)
 
 
 @receiver(user_login_failed)
-def on_user_login_failed(request, credentials, **__):
+def on_user_login_failed(request, credentials, **__) -> None:
     """Log when user failed to login."""
     ip = get_client_ip(request)
     logger.warning('Login failed for: %s via ip: %s', credentials, ip)
@@ -74,7 +74,7 @@ def check_auth(request: HttpRequest) -> Optional[User]:
 class RPCHandler(View):
     """Handle RPC requests."""
 
-    def post(self, request: HttpRequest) -> HttpResponse:
+    def post(self, request: HttpRequest) -> HttpResponseBase:
         """Handle RPC requests."""
         json_data = loads(request.body)
         method = json_data.get("f")
@@ -96,7 +96,7 @@ class RPCHandler(View):
                   n: str = "Unnamed poll",
                   i: str = '',
                   a: int = 0,
-                  r: int = 0) -> HttpResponse:
+                  r: int = 0) -> HttpResponseBase:
         """Create a poll."""
         user = check_auth(request)
         if user is None:
@@ -147,7 +147,7 @@ class RPCHandler(View):
                                        allow=a)
         return HttpResponse(cur_poll.pk)
 
-    def fn_res(self, request: HttpRequest, n: str) -> HttpResponse:
+    def fn_res(self, request: HttpRequest, n: str) -> HttpResponseBase:
         """Return the responses and it's count."""
         if not isinstance(n, str):
             return HttpResponse("Poll number must be a string.", status=400)
@@ -159,7 +159,7 @@ class RPCHandler(View):
             return HttpResponse("Forbidden", status=403)
         return HttpResponse(dumps(poll.get_responses()))
 
-    def fn_aa(self, request: HttpRequest, n: str):
+    def fn_aa(self, request: HttpRequest, n: str) -> HttpResponseBase:
         """Check whether the poll is already answered."""
         poll = get_or_none(Poll, pk=n)
         if poll is None:
@@ -172,7 +172,7 @@ class RPCHandler(View):
             return HttpResponse("n")
         return HttpResponse("idk", status=401)
 
-    def fn_submit(self, request: HttpRequest, n: str, r: Optional[dict] = None):
+    def fn_submit(self, request: HttpRequest, n: str, r: Optional[dict] = None) -> HttpResponseBase:
         """Submit answers to database."""
         user = check_auth(request)
         poll = get_or_none(Poll, pk=n)
@@ -193,7 +193,7 @@ class RPCHandler(View):
         Response.objects.bulk_create(ress)
         return HttpResponse("ok")
 
-    def fn_get(self, request: HttpRequest, n: str):
+    def fn_get(self, request: HttpRequest, n: str) -> HttpResponseBase:
         """Get a poll."""
         user = check_auth(request)
         poll = get_or_none(Poll, pk=n)
@@ -212,7 +212,7 @@ class RPCHandler(View):
 class BasicView(View):
     """Contain basic views like auth, polls, create, and responses."""
 
-    def get(self, request: HttpRequest, **kwargs) -> HttpResponse:
+    def get(self, request: HttpRequest, **kwargs) -> HttpResponseBase:
         """Accept GET request for basic views."""
         if request.resolver_match is not None:
             name = request.resolver_match.url_name
@@ -228,7 +228,7 @@ class BasicView(View):
         return FileResponse(open(FRONTEND.joinpath("auth", "index.html"),
                                  "rb"))
 
-    def view_polls(self, request: HttpRequest) -> HttpResponse:
+    def view_polls(self, request: HttpRequest) -> HttpResponseBase:
         """Display a list of polls."""
         now = timezone.now()
         polls = list(
@@ -261,7 +261,7 @@ class BasicView(View):
         return FileResponse(
             open(FRONTEND.joinpath("create", "index.html"), "rb"))
 
-    def view_poll(self, request: HttpRequest, poll_id: int) -> HttpResponse:
+    def view_poll(self, request: HttpRequest, poll_id: int) -> HttpResponseBase:
         """Return the html file for viewing the poll."""
         poll = get_or_none(Poll, pk=poll_id)
         if poll is None:
@@ -290,7 +290,7 @@ class BasicView(View):
                 })
             })
 
-    def view_res(self, request: HttpRequest, poll_id: int) -> HttpResponse:
+    def view_res(self, request: HttpRequest, poll_id: int) -> HttpResponseBase:
         """Return the html file for results."""
         poll = get_or_none(Poll, pk=poll_id)
         if poll is None:

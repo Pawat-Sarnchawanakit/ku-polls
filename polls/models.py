@@ -1,13 +1,15 @@
 """Contains models."""
 import enum
-from typing import Any
+from typing import Any, Optional, TypeVar, cast
 from django.db import models
 from django.utils import timezone
 from django.db.models import Count
 from django.contrib.auth.models import User
 
+ModelClass = TypeVar('ModelClass')
 
-def get_or_none(model_class, **kwargs):
+
+def get_or_none(model_class: type[ModelClass], **kwargs) -> Optional[ModelClass]:
     """Get a model, returns None if not found.
 
     Args:
@@ -17,8 +19,8 @@ def get_or_none(model_class, **kwargs):
         model_class | None: The obtained model class or None
     """
     try:
-        return model_class.objects.get(**kwargs)
-    except model_class.DoesNotExist:
+        return cast(ModelClass, cast(models.Model, model_class).objects.get(**kwargs))
+    except cast(models.Model, model_class).DoesNotExist:
         return None
 
 
@@ -123,7 +125,7 @@ class Poll(models.Model):
         """
         return self.is_published() and not self.is_closed()
 
-    def can_vote(self, user: User | None) -> bool:
+    def can_vote(self, user: Optional[User]) -> bool:
         """Check if a user can vote.
 
         Check whether a particular user, or an annoynamous user
@@ -152,7 +154,7 @@ class Poll(models.Model):
             return True
         return False
 
-    def can_view(self, user: User | None):
+    def can_view(self, user: Optional[User]) -> bool:
         """Check whether a user can view a poll.
 
         Args:
@@ -164,7 +166,7 @@ class Poll(models.Model):
         return (user is not None
                 and user == self.creator) or self.can_vote(user)
 
-    def requires_auth(self):
+    def requires_auth(self) -> bool:
         """Check whether the poll requires authentication to submit.
 
         Returns:
@@ -173,7 +175,7 @@ class Poll(models.Model):
         return (self.allow != 0 and not AuthType.CLIENT.has(self.allow)
                 and AuthType.AUTH.has(self.allow))
 
-    def can_view_responses(self, user: User | None):
+    def can_view_responses(self, user: Optional[User]) -> bool:
         """Check if a user can view responses.
 
         Check whether a particular user, or an annoynamous user
