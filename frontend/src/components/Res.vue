@@ -93,24 +93,25 @@ for(const blk of yaml.poll) {
     switch(question.type) {
         case "CHOICE": {
             if(data.responses[question_var] == null)
-                data.responses[question_var] = {}
+                data.responses[question_var] = [];
             for(const choice of question.choices) {
                 const choice_var = Object.keys(choice)[0];
-                if(data.responses[question_var][choice_var] == null)
-                    data.responses[question_var][choice_var] = {
+                if(data.responses[question_var].findIndex(v => v.value == choice_var) == -1)
+                    data.responses[question_var].push({
                         "value": choice_var,
                         "count": 0
-                    };
+                    });
             }
             break;
         }
         case "SHORT": {
             if(data.responses[question_var] == null)
-                data.responses[question_var] = {};
+                data.responses[question_var] = [];
             break;
         }
     }
 }
+console.log(data.responses);
 responses.value = data.responses;
 
 function view_poll() {
