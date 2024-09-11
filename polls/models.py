@@ -1,12 +1,15 @@
 """Contains models."""
 import enum
+from typing import Any, Optional, TypeVar, cast
 from django.db import models
 from django.utils import timezone
 from django.db.models import Count
 from django.contrib.auth.models import User
 
+ModelClass = TypeVar('ModelClass')
 
-def get_or_none(model_class, **kwargs):
+
+def get_or_none(model_class: type[ModelClass], **kwargs) -> Optional[ModelClass]:
     """Get a model, returns None if not found.
 
     Args:
@@ -16,8 +19,8 @@ def get_or_none(model_class, **kwargs):
         model_class | None: The obtained model class or None
     """
     try:
-        return model_class.objects.get(**kwargs)
-    except model_class.DoesNotExist:
+        return cast(ModelClass, cast(models.Model, model_class).objects.get(**kwargs))
+    except cast(models.Model, model_class).DoesNotExist:
         return None
 
 
@@ -60,22 +63,25 @@ class ResType(BitEnum):
 class Poll(models.Model):
     """The polls which will be listed in the home page."""
 
-    name = models.CharField(max_length=100, default='Unnamed Poll')
+    name: models.CharField = models.CharField(max_length=100,
+                                              default='Unnamed Poll')
     # Id of who created the poll.
-    creator = models.ForeignKey(User, on_delete=models.CASCADE)
+    creator: models.ForeignKey = models.ForeignKey(User,
+                                                   on_delete=models.CASCADE)
     # Who is allowed to submit responses to the poll,
     # authenticated users only? etc...
-    allow = models.IntegerField(default=0)
+    allow: models.IntegerField = models.IntegerField(default=0)
     # Who is allowed to view the result of the poll.
-    res = models.IntegerField(default=0)
+    res: models.IntegerField = models.IntegerField(default=0)
     # The thumbnail image of the poll.
-    image = models.CharField(max_length=256, default='')
+    image: models.CharField = models.CharField(max_length=256, default='')
     # The actual poll data in yaml.
-    yaml = models.CharField(max_length=4096 * 8)
+    yaml: models.CharField = models.CharField(max_length=4096 * 8)
     # The date the poll is published.
-    pub_date = models.DateTimeField(default=timezone.now)
+    pub_date: models.DateTimeField = models.DateTimeField(default=timezone.now)
     # The date the poll won't accept a  ny more answers.
-    end_date = models.DateTimeField(null=True, default=None)
+    end_date: models.DateTimeField = models.DateTimeField(null=True,
+                                                          default=None)
 
     def get_responses(self) -> dict:
         """Get the responses.
@@ -86,7 +92,7 @@ class Poll(models.Model):
         responses_list = Response.objects.filter(question=self) \
             .values("key", "value") \
             .annotate(count=Count("value"))
-        responses_dict = dict()
+        responses_dict: dict[str, list[dict[str, Any]]] = dict()
         for v in responses_list:
             val = responses_dict.get(v["key"])
             if val is None:
@@ -119,7 +125,7 @@ class Poll(models.Model):
         """
         return self.is_published() and not self.is_closed()
 
-    def can_vote(self, user: User | None) -> bool:
+    def can_vote(self, user: Optional[User]) -> bool:
         """Check if a user can vote.
 
         Check whether a particular user, or an annoynamous user
@@ -148,7 +154,7 @@ class Poll(models.Model):
             return True
         return False
 
-    def can_view(self, user: User | None):
+    def can_view(self, user: Optional[User]) -> bool:
         """Check whether a user can view a poll.
 
         Args:
@@ -160,7 +166,7 @@ class Poll(models.Model):
         return (user is not None
                 and user == self.creator) or self.can_vote(user)
 
-    def requires_auth(self):
+    def requires_auth(self) -> bool:
         """Check whether the poll requires authentication to submit.
 
         Returns:
@@ -169,7 +175,7 @@ class Poll(models.Model):
         return (self.allow != 0 and not AuthType.CLIENT.has(self.allow)
                 and AuthType.AUTH.has(self.allow))
 
-    def can_view_responses(self, user: User | None):
+    def can_view_responses(self, user: Optional[User]) -> bool:
         """Check if a user can view responses.
 
         Check whether a particular user, or an annoynamous user
@@ -198,14 +204,15 @@ class Response(models.Model):
     """Reponse of the polls."""
 
     # What poll does this response belong to?
-    question = models.ForeignKey(Poll, on_delete=models.CASCADE)
+    question: models.ForeignKey = models.ForeignKey(Poll,
+                                                    on_delete=models.CASCADE)
     # Who wrote this response?
     # NULL if the one who responded is not authenticated.
-    submitter = models.ForeignKey(User,
-                                  default=None,
-                                  null=True,
-                                  on_delete=models.CASCADE)
+    submitter: models.ForeignKey = models.ForeignKey(User,
+                                                     default=None,
+                                                     null=True,
+                                                     on_delete=models.CASCADE)
     # What `question` does this response answer?
-    key = models.CharField(max_length=200)
+    key: models.CharField = models.CharField(max_length=200)
     # What is the answer to that question?
-    value = models.CharField(max_length=200)
+    value: models.CharField = models.CharField(max_length=200)

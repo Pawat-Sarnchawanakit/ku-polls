@@ -26,7 +26,7 @@ SECRET_KEY = config("SECRET_KEY", default=get_random_secret_key(), cast=str)
 DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS',
-                       default=["*"],
+                       default="*",
                        cast=lambda v: [s.strip() for s in str(v).split(',')])
 CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS',
                        default=["http://localhost", "http://127.0.0.1"],
@@ -88,7 +88,7 @@ AUTH_PASSWORD_VALIDATORS = []
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = config("TIME_ZONE", cast=str)
+TIME_ZONE = config("TIME_ZONE", default="UTC", cast=str)
 
 USE_I18N = True
 
