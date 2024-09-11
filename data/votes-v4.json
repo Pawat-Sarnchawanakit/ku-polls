@@ -1,0 +1,22 @@
+[
+{
+  "model": "polls.response",
+  "pk": 1,
+  "fields": {
+    "question": 2,
+    "submitter": 3,
+    "key": "time",
+    "value": "past"
+  }
+},
+{
+  "model": "polls.response",
+  "pk": 2,
+  "fields": {
+    "question": 2,
+    "submitter": 3,
+    "key": "transpt",
+    "value": "car"
+  }
+}
+]
