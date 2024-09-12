@@ -106,7 +106,7 @@ function onYamlLoaded(body) {
         cantsubmit = true;
         if(poll_data.allow == 0) {
             cantsubmit = false;
-        } else if((poll_data.allow & AllowType.CLIENT) != 0) {
+        } else if((poll_data.allow & AllowType.CLIENT) != 0 && !body.auth) {
             if(localStorage.getItem("answered_" + poll_id) == 'y') {
                 dlg_col.value = "#FFF";
                 dlg_text.value = "You already answered this poll.";

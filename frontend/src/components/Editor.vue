@@ -7,7 +7,7 @@
     <div style="display: flex;justify-content: space-evenly;">
       <button @click="create">{{ create_btn_msg }}</button>
       <button @click="preview">Preview</button>
-      <button><a href="/auth">Polls</a></button>
+      <button @click="go_home">Polls</button>
     </div>
   </div>
 </template>
@@ -27,6 +27,7 @@ button {
   border: none;
   border-radius: 10px;
   background-color: #2B2B2B;
+  cursor: pointer;
 }
 button:hover {
   background-color: #3B3B3B;
@@ -121,6 +122,10 @@ if(poll_id != null) {
       }
       example = body.yaml;
   }));
+}
+
+function go_home() {
+  document.location.href = window.location.protocol + "//" + window.location.host;
 }
 
 function create() {
