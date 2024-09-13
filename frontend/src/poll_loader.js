@@ -267,6 +267,11 @@ export function get_poll_answers(element, yaml) {
             ok: false,
             message: "Failed to input block for `" + question_var + "`"
           };
+        if(input.value == "" && question.required)
+          return {
+            ok: false,
+            message: "You need to answer the question `" + (question.text || question_var) + "`"
+          };
         res[question_var] = input.value;  
         break;
       }

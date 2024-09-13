@@ -7,12 +7,30 @@
     <div style="display: flex;justify-content: space-evenly;">
       <button @click="create">{{ create_btn_msg }}</button>
       <button @click="preview">Preview</button>
-      <button @click="go_home">Polls</button>
     </div>
+  </div>
+  <div style="display: flex;flex-direction: row;position: absolute;left: 0;top: 0;">
+      <a href="/"><input class="left-btn" :style='{ "background-image": `url("${home_img}")` }' type="button"/></a>
+      <input @click="revert" title="Revert" class="left-btn" :style='{ "background-image": `url("${revert_img}")` }' type="button"/>
   </div>
 </template>
 
 <style scoped>
+.left-btn {
+    user-select: none;
+    margin: 5px;
+    background-color: #3B3B3B;
+    background-size: cover;
+    width: 30px;
+    height: 30px;
+    padding: 3px;
+    border: none;
+    border-radius: 5px;
+    display: block;
+}
+.left-btn:hover {
+    background-color: #4B4B4B;
+}
 dialog {
   border: none;
   border-radius: 10px;
@@ -38,6 +56,8 @@ button:hover {
 </style>
 
 <script setup>
+import home_img from './../assets/home.svg?url';
+import revert_img from './../assets/revert.svg?url';
 const paths = document.location.pathname.split('/').filter((a) => a.length != 0);
 let poll_id = null;
 if(paths.length > 1)
@@ -73,27 +93,49 @@ function setupDialog(caption, header, caption_color="#FFF", header_color="#FFF",
   dlg.value.appendChild(hint_element);
 }
 
+
 let example = 
-`name: "The meaning of life"
+`# The title of the poll.
+name: "The meaning of life"
+# The thumbnail of the poll
 image: "https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fwww.stock-free.org%2Fimages%2Fstock-free-test-photo-07092015-16.jpg&f=1&nofb=1&ipt=8fe8731f129a2098c9e0a559a7f987f32e7d832a6fbee15968c9a1b4aed2a9d5&ipo=images"
+# Who is allowed to answer?
+# * = anyone any times
+# CLIENT = anyone single time.
+# AUTH = authenticated users only
 allow: CLIENT
+# Who can view results?
+# * = anyone
+# AUTH = authenticated users only
 res: '*'
 # The time the poll is available, in Unix time.
 begin: ${new Date/1E3|0}
 # The time the poll is no longer accepting responses, in Unix time.
 # end: ${(new Date/1E3|0) + 604800}
 poll:
+    # 'info' would be the question variable displayed in results.
     - info:
+        # There are three types LABEL, CHOICE, and SHORT
         type: LABEL
+        # The text that will be shown in question block.
         text: "Example Survey"
+        # The caption that will be shown inside the block.
         label: "The purpose of this survey is to know what people think the meaning of life is.\\nThis should give insight into why people commit suicide."
     - name:
+        # Short answer question.
         type: SHORT
+        # You need to answer this, you can't skip it.
+        required: true
         text: "What is your name?"
     - 1:
+        # Choice question.
         type: CHOICE
         text: "What is the meaning of life?"
+        # You need to answer this, you can't skip it.
+        required: true
+        # The choices
         choices:
+            # format is variable: text, 'a' would be shown in result page. if it is selected.
             - a: "The engine of a film."
             - b: "The fine game of nil."
             - c: "42"
@@ -102,6 +144,10 @@ poll:
 
 let mounted = false;
 let monaco_editor;
+
+function revert() {
+  monaco_editor.setValue(example);
+}
 
 if(poll_id != null) {
   header_msg.value = "Edit poll";
@@ -122,10 +168,6 @@ if(poll_id != null) {
       }
       example = body.yaml;
   }));
-}
-
-function go_home() {
-  document.location.href = window.location.protocol + "//" + window.location.host;
 }
 
 function create() {
