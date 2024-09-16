@@ -1,0 +1,21 @@
+[run]
+# measure branch coverage
+branch = True
+
+# don't measure python standard library (this should be the default)
+cover_pylib = False
+
+# omit uninteresting stuff
+omit =
+    manage.py
+    polls/__init__.py
+    config/*
+    polls/migrations/*
+    polls/tests.py
+
+# in the report, exclude some methods we don't need to test
+[report]
+exclude_lines =
+    def __str__
+    def __repr__
+    urlpatterns = 

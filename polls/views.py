@@ -221,13 +221,6 @@ class BasicView(View):
                 return getattr(self, method)(request, **kwargs)
         return HttpResponse("Page not found.", status=404)
 
-    def view_auth(self, request: HttpRequest) -> HttpResponseBase:
-        """Display login/register view."""
-        if check_auth(request) is not None:
-            return redirect("polls:polls")
-        return FileResponse(open(FRONTEND.joinpath("auth", "index.html"),
-                                 "rb"))
-
     def view_polls(self, request: HttpRequest) -> HttpResponseBase:
         """Display a list of polls."""
         now = timezone.now()
@@ -301,7 +294,7 @@ class BasicView(View):
         if not poll.can_view_responses(user):
             messages.add_message(
                 request, messages.ERROR, "You do not have permission to"
-                "view the responses of this poll.")
+                " view the responses of this poll.")
             return render(request, "error_message.html",
                           {"header": "Access denied"})
         return render(

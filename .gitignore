@@ -36,3 +36,7 @@ dist-ssr
 .ruff_cache
 .mypy_cache
 lint.bat
+
+# Coverage
+.coverage
+htmlcov/
