@@ -17,7 +17,7 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - pg_isready -d polls -U $$POSTGRES_USER
+        - pg_isready -d polls_poll -U $$POSTGRES_USER
       start_period: 10s
       interval: 5s
       retries: 10
