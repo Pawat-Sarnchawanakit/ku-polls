@@ -23,7 +23,6 @@ services:
       retries: 10
   app:
     build: .
-    env_file: .env
     environment:
       SECRET_KEY: ${SECRET_KEY}
       DEBUG: ${DEBUG}
